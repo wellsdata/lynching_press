@@ -1,0 +1,811 @@
+---
+title: "LOC news coverage"
+author: "Rob Wells"
+date: "2023-11-14"
+output: html_document
+---
+
+This notebook scrapes Chronicling America to return all editions of newspapers in a state.
+It then compares the printed editions to the dates of lynchings.
+The idea is to exclude specific newspapers from any claims they ignored lynchings if they weren't publishing on those dates.
+
+
+12-28 update.
+There is not enough precision and depth in the article extraction (key articles haven been extracted due to OCR problems), not enough detail in the geocoding done by the students (2783 obs of 60,042 pages), and many difficulties in matching the Tolnay-Beck to the extracted articles and then to a broader index of all news coverage in a state at a time. 
+The problems with matching are compounded by the small sample size. At this point, we just lack the precision to single out a newspaper for failing to cover a lynching. Our data didn't capture the Roanoke Times covering a Sept 1893 lynching in its town. I found it on 9-23-1893 but the article hadn't been extracted due to OCR problems.
+
+
+```{r message=FALSE, warning=FALSE}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "XXXX")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+#install.packages("janitor")
+```
+
+Build an index of all available titles: just create a DF and feed it a list of LCCNs
+ Here's the json file for the Savanah Morning News:
+##https://chroniclingamerica.loc.gov/lccn/sn82015137.json
+ 
+### List LCCNS
+```{r}
+# Printing Hate Main Index of Newspapers
+#new_main_index <- read.csv("../data/mainindex_10_30.csv")
+new_main_index <- read.csv("../data/main_index_dec_27_2023.csv")
+#2,143 separate publications 
+snlist <- new_main_index %>% 
+  select(newspaper_name, newspaper_state_clean, sn) %>% 
+  distinct(sn, .keep_all = TRUE)
+ 
+#fact check - 1 row per item
+# snlist %>% 
+#   count(sn) %>% 
+#   arrange(desc(n))
+
+snlist %>% 
+  count(newspaper_state_clean) %>% 
+  arrange(desc(n))
+
+
+snlist %>% 
+  count(newspaper_name) %>% 
+  arrange(desc(n))
+
+
+```
+
+
+### Scraping LOC for editions
+
+
+### State Filter - test
+```{r}
+#testing this out with a state filter
+va_sn <- snlist %>% 
+  filter(newspaper_state_clean =="VA")
+#79 VA newspapers
+#75 MS newspapers
+
+# lccn_list <- ms_sn %>% 
+#   select(sn) %>% 
+#   as.list()
+
+lccn_list <- as.character(va_sn$sn)
+
+# ga_sn <- snlist %>% 
+#   filter(newspaper_state =="Ga")
+# 
+# lccn_list <- ga_sn %>% 
+#   select(sn) %>% 
+#   as.list()
+#lccn_list <- c("sn82015137", "sn83030313")
+#lccn_list <- lccn_number
+
+
+```
+
+
+
+```{r}
+
+library(jsonlite)
+library(dplyr)
+
+#lccn_list <- c("sn82015137", "sn83030313")
+
+
+# Function to create dataframe from LCCN number
+create_dataframe <- function(lccn_list) {
+  # Initialize an empty list to store dataframes
+  df_list <- list()
+  
+  # Loop over each LCCN number in the list
+  for(lccn in lccn_list) {
+    # Fetch the JSON data
+    qq <- fromJSON(paste0("https://chroniclingamerica.loc.gov/lccn/", lccn, ".json"))
+    
+    # Create the dataframe
+    df1 <- qq[["issues"]] %>% as.data.frame()
+    
+    # Extract additional information
+    name1 <- as.character(qq["name"])
+    place1 <- as.character(qq["place"])
+    city1 <- as.character(qq["place_of_publication"])
+    lccn1 <- as.character(qq["lccn"])
+    
+    # Add the additional information to the dataframe
+    df1 <- df1 %>% 
+      mutate(name = name1,
+             place = place1,
+             lccn = lccn1,
+             city = city1)
+    
+    # Add the dataframe to the list
+    df_list[[lccn]] <- df1
+  }
+  
+  # Return the list of dataframes
+  return(df_list)
+}
+
+
+
+df_list <- create_dataframe(lccn_list)
+
+df_list2 <- df_list
+
+df2 <- tibble::enframe(df_list2, name = "sn_number", value = "Value")
+
+# Unnest the dataframe
+df_unnested <- df2 %>% unnest(cols = Value)
+
+
+
+```
+
+### AL Test analysis
+
+```{r}
+va_papers_all <- df_unnested %>% 
+  as.data.frame()
+#VA: 79 separate titles, 95,549 issues
+#AL 5 newspapers, 14,162 issues
+
+write.csv(va_papers_all, "../output/va_papers_all.csv")
+
+
+vaal <- va_papers_all %>% 
+  count(name) %>% 
+  arrange(desc(n))
+
+vaal
+```
+
+
+
+### VA Test analysis
+
+```{r}
+#write.csv(ga_papers_all, "../output/ga_papers_all.csv")
+#ga_papers_all <- df_unnested
+
+xx<- va_papers_all %>% 
+  count(name) %>% 
+  arrange(desc(n))
+
+xx
+
+#VA: 79 separate titles, 95,549 issues
+# The daily dispatch. [volume]	9851			
+# Richmond dispatch. [volume]	5793			
+# Richmond enquirer. [volume]	5231			
+# The Richmond palladium and sun-telegram. [volume]	5167			
+# The times dispatch. [volume]	4143			
+# The times. [volume]	4072			
+# The Richmond Virginian.	3635			
+# Shenandoah herald. [volume]	2975			
+# Richmond times-dispatch. [volume]	2964			
+# Richmond daily Whig. [volume]	2475	
+
+
+#GA - 15 titles, 22,284 issues
+
+#Titles and counts	
+
+# Americus times-recorder. [volume]
+# 7277
+# The morning news. [volume]
+# 4801
+# Atlanta Georgian. [volume]
+# 3679
+# The Savannah morning news.
+# 1669
+# Atlanta semi-weekly journal.
+# 953
+# Atlanta tri-weekly journal. [volume]
+# 740
+# The Presbyterian of the South : [combining the] Southwestern Presbyterian, Central Presbyterian, Southern Presbyterian. [volume]
+# 674
+# The Brunswick times. [volume]
+# 548
+# The Brunswick daily news. [volume]
+# 532
+# The Jeffersonian. [volume]
+# 498
+# The Brunswick times-call. [volume]
+# 410
+# The Atlanta constitution. [volume]
+# 383
+# People's party paper. [volume]
+# 76
+# Watson's weekly Jeffersonian. [volume]
+# 34
+# Weekly Jeffersonian. [volume]
+# 10
+
+
+
+
+```
+
+# Sampling Memo Nov 12 
+
+
+We have geocoded states where newspapers are located and the places where people were lynched. There's a huge gap in the Southern newspapers' coverage of lynchings in their own states.
+
+Right now, I'm writing it like this:
+Despite problematic gaps in the underlying sample, an examination of Georgia reveals some important gaps. Mobs in the state lynched people more than 450 times during the same period, based on  Tolnay-Beck-Bailey (Bailey, 2022). The newspaper data showed 201 lynchings reported during this time period in Georgia yet the Georgia press covered 66 lynchings during this period. Only 10 of these stories by Georgia newspapers focused on lynchings that occurred in the state.
+
+The problem is we don't have a consistent press run for Georgia during this time. The newspaper collection is spotty.
+
+So I weighted our sample 2,783 geocoded articles against the entire collection of LOC newspapers. As it turns out, our Georgia sample on a percentage of the whole exceeds the rate of the total Library of Congress collection. Good!  The Georgia geocoded sample of 2.4% was greater than the overall collection of Georgia newspapers, which represented 1.7% of the total LOC collection.
+
+(need to analyze the specific years of Tolnay and Beck coverage and the specific years of the Georgia newspaper coverage)
+
+### Tolnay Beck Data - Lynch Geocoded
+```{r}
+tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+  as.data.frame()
+
+#lynch geocoded - 2783 stories geocoded
+lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv") %>% 
+  mutate(date = str_trim(date)) 
+
+lynch_geocoded_10.8$date <- str_replace_all(lynch_geocoded_10.8$date, ('/'), replacement=fixed('-') )
+
+lynch_geocoded_10.8 <- lynch_geocoded_10.8 %>%  
+  mutate(date = mdy(date))
+
+```
+
+### GA ANALYSIS WITH TOLNAY
+```{r}
+#22,284 total newspaper issues from 15 different papers
+ga_papers_all <- read.csv("../content/ga_papers_all.csv")
+
+ga_papers_all <- ga_papers_all %>% 
+  mutate(date = lubridate::ymd(date_issued)) 
+
+
+ga_tolnay <- tolnay_beck %>% 
+  filter(lynch_state =="GA") %>% 
+  mutate(date = paste(month,day,year, sep = "/")) %>% 
+  mutate(tolnay_date = as.Date(date, "%m/%d/%Y")) %>% 
+  mutate(yearmo = as.Date(as.yearmon(tolnay_date, "%m/%Y"))) %>%
+  select(status, tolnay_date, year, month, day, yearmo, name, alt_name_number_1, lynch_county, lynch_state, method_of_death, accusation)
+
+
+matcheroo <- ga_papers_all %>% 
+  inner_join(ga_tolnay, by=c("date"="tolnay_date"))
+
+ga_geo_filtered <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo, by=c("sn"="GA_news")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+
+```
+
+```{r}
+ga_geo_filtered %>% 
+  count(state_lynch) %>% 
+  arrange(desc(n))
+#seven GA lynchings on exactly the Tolnay-Beck dates
+# GA	7			
+# SC	6			
+# LA	4			
+# TN	4			
+# FL	3	
+
+
+```
+
+### Spread Tolnay dates       
+```{r}
+# Create a sequence of dates for 21 days after date1
+# ga_tolnay is 685 obs of all GA lynchings, 1865-2020
+
+
+# ga_tolnay$date_seq <- lapply(ga_tolnay$tolnay_date, function(x) seq(as.Date(x), by = "day", length.out = 21))
+
+
+ga_tolnay$date_seq <- lapply(ga_tolnay$tolnay_date, function(x) {
+  if (!is.na(as.Date(x))) {
+    seq(as.Date(x), by = "day", length.out = 21)
+  } else {
+    NA
+  }
+})
+
+# Unnest the data frame
+ga_tolnay<- unnest(ga_tolnay, cols = c(date_seq))
+```
+
+```{r}
+matcheroo1 <- ga_papers_all %>% 
+  inner_join(ga_tolnay, by=c("date"="date_seq"))
+
+ga_geo_filtered1 <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo1, by=c("sn"="GA_news")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+
+
+
+```
+### Analysis of the spread Tolnay data
+```{r}
+ga_geo_filtered1 %>% 
+  count(in_state) %>% 
+  arrange(desc(n))
+
+#There were 7 in-state stories, about 13% all GA lynching coverage, total 54 lynching stories published in GA papers, 
+
+
+ga %>% 
+  count(in_state) %>% 
+  arrange(desc(n))
+
+#Unfiltered GA coverage
+#10 in-state stories, or 5% of the total 201 lynching stories published in GA papers
+
+```
+
+### MS ANALYSIS
+
+```{r}
+### Matching all LOC MS collection to Tolnay
+
+#75 newspapers, 44,290 issues
+#ms_papers_all <- read.csv("../output/ms_papers_all.csv")
+
+ms_papers_all <- ms_papers_all %>% 
+  mutate(date = lubridate::ymd(date_issued)) 
+
+ms_tolnay <- tolnay_beck %>% 
+  filter(lynch_state =="MS") %>% 
+  mutate(date = paste(month,day,year, sep = "/")) %>% 
+  mutate(tolnay_date = as.Date(date, "%m/%d/%Y")) %>% 
+  mutate(yearmo = as.Date(as.yearmon(tolnay_date, "%m/%Y"))) %>%
+  select(status, tolnay_date, year, month, day, yearmo, name, alt_name_number_1, lynch_county, lynch_state, method_of_death, accusation)
+
+
+matcheroo <- ms_papers_all %>% 
+  inner_join(ms_tolnay, by=c("date"="tolnay_date"))
+
+ms_geo_filtered <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo, by=c("sn"="sn_number")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+#69 matches with the tolnay data - exact dates
+```
+
+```{r}
+ms_geo_filtered %>% 
+  count(state_lynch) %>% 
+  arrange(desc(n))
+#12 MS lynchings on exactly the Tolnay-Beck dates
+# MS	12			
+# NA	9			
+# GA	6			
+# AR	4			
+# LA	4			
+# SC	4			
+# VA	4	
+
+
+```
+
+### Spread Tolnay dates       
+```{r}
+# Create a sequence of dates for 21 days after date1
+# ms_tolnay is 830 obs of all MS lynchings, 1865-2011
+
+# ms_tolnay$date_seq <- lapply(ms_tolnay$tolnay_date, function(x) seq(as.Date(x), by = "day", length.out = 21))
+
+
+ms_tolnay$date_seq <- lapply(ms_tolnay$tolnay_date, function(x) {
+  if (!is.na(as.Date(x))) {
+    seq(as.Date(x), by = "day", length.out = 21)
+  } else {
+    NA
+  }
+})
+
+# Unnest the data frame
+
+ms_tolnay<- unnest(ms_tolnay, cols = c(date_seq))
+```
+
+```{r}
+matcheroo1 <- ms_papers_all %>% 
+  inner_join(ms_tolnay, by=c("date"="date_seq"))
+
+ms_geo_filtered1 <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo1, by=c("sn"="sn_number")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+#70 MS newspapers that had some lynching coverage
+
+
+```
+### Analysis of the spread Tolnay data
+```{r}
+ms_geo_filtered1 %>% 
+  count(in_state) %>% 
+  mutate(pct = (n/(sum(n)))) %>% 
+  arrange(desc(n))
+
+#There were 12 in-state stories, about 17% all MS lynching coverage, total 70 lynching stories published in MS papers, 
+
+lynch_geocoded_10.8 %>% 
+  filter(newspaper_state_code=="MS") %>% 
+  count(in_state) %>% 
+  mutate(pct = (n/(sum(n)))) %>% 
+  arrange(desc(n))
+
+#Unfiltered MS coverage
+#14 in-state stories, or 18% of the total 79 lynching stories published in MS papers
+
+```
+
+#VA Analysis
+```{r}
+
+#VA: 79 separate titles, 95,549 issues
+# The daily dispatch. [volume]	9851			
+# Richmond dispatch. [volume]	5793			
+# Richmond enquirer. [volume]	5231			
+# The Richmond palladium and sun-telegram. [volume]	5167			
+# The times dispatch. [volume]	4143			
+# The times. [volume]	4072			
+# The Richmond Virginian.	3635			
+# Shenandoah herald. [volume]	2975			
+# Richmond times-dispatch. [volume]	2964			
+# Richmond daily Whig. [volume]	2475	
+
+lynch_geocoded_10.8 <- lynch_geocoded_10.8 %>% 
+  mutate(month = lubridate::month(date))
+
+
+va_papers_all <- read.csv("../output/va_papers_all.csv")
+
+va_papers_all <- va_papers_all %>% 
+  mutate(date = lubridate::ymd(date_issued)) 
+
+
+#126 lynchings in tolnay beck for Virginia, 1886-1932 
+va_tolnay <- tolnay_beck %>% 
+  filter(lynch_state =="VA") %>% 
+  mutate(date = paste(month,day,year, sep = "/")) %>% 
+  mutate(tolnay_date = as.Date(date, "%m/%d/%Y")) %>% 
+  mutate(yearmo = as.Date(as.yearmon(tolnay_date, "%m/%Y"))) %>%
+  select(status, tolnay_date, year, month, day, yearmo, name, alt_name_number_1, lynch_county, lynch_state, method_of_death, accusation)
+
+#365 direct matches of va newspapers and va lynchings by the exact date
+matcheroo <- va_papers_all %>% 
+  inner_join(va_tolnay, by=c("date"="tolnay_date"))
+
+#7 stories that students have geocoded that directly match same day as tolnay-beck
+#81 Virginia lynchings in lynch_geocoded
+#bad match since lynch_geocoded has 13 entries about VA lynchings covered by VA newspapers
+va_geo_filteredX <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo, by=c("state_lynch"="lynch_state", "sn"="sn_number")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+#6 obs by state and state, date
+#50 obs by state, year
+va_geo_filtered <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo, by=c("state_lynch"="lynch_state", "year")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+# bad match - brings in articles from other states and erroneously matches with va lynchings
+# va_geo_filtered <- lynch_geocoded_10.8 %>% 
+#   inner_join(matcheroo, by=c("sn"="sn_number")) %>% 
+#   distinct(file_id, .keep_all = TRUE)
+
+#65 va papers that match with tolnay data - exact dates
+
+
+
+```
+
+### Spread Tolnay dates       
+```{r}
+# Create a sequence of dates for 21 days after date1
+# ms_tolnay is 830 obs of all MS lynchings, 1865-2011
+
+# va_tolnay1 is 2606 obs of all VA lynchings, 1866-1927
+
+va_tolnay1 <- va_tolnay
+
+va_tolnay1$date_seq <- lapply(va_tolnay1$tolnay_date, function(x) {
+  if (!is.na(as.Date(x))) {
+    seq(as.Date(x), by = "day", length.out = 21)
+  } else {
+    NA
+  }
+})
+
+# Unnest the data frame
+
+va_tolnay1<- unnest(va_tolnay1, cols = c(date_seq))
+```
+
+```{r}
+#match all known va papers to the 21-day range of tolnay lynchings 
+#8245 possible VA newspaper issues to report on 126 VA lynchings
+#81 VA lynchings in lynch_geocoded
+matcheroo1 <- va_papers_all %>% 
+  inner_join(va_tolnay1, by=c("date"="date_seq"))
+
+#filter this down
+#again, it doesn't work because the match on SN is bringing in false matches
+
+#matches 17 - a few don't make sense and are matched by sn
+va_geo_filtered1 <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo1, by=c("year", "sn"="sn_number")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+#55 obs
+va_geo_filtered2 <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo1, by=c("state_lynch"="lynch_state", "year")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+
+#inner join- 372 newspapers that had some lynching coverage
+va_geo_filtered2 <- lynch_geocoded_10.8 %>% 
+  inner_join(matcheroo1, by=c("year","month", "sn"="sn_number")) %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+
+
+va_lynchings_year <- lynch_geocoded_10.8 %>% 
+  filter(state_lynch=="VA") %>% 
+  group_by(year, lynch_address) %>% 
+  count(lynch_address) %>% 
+  ungroup() %>% 
+  arrange(year)
+  
+#Tolnay and lynch geocoded - 284 obs with the range
+test <- lynch_geocoded_10.8 %>% 
+  inner_join(va_tolnay1, by=c("date"="date_seq", "state_lynch"="lynch_state")) %>%     distinct(file_id, .keep_all = TRUE)
+
+
+
+
+
+```
+### Analysis of the spread Tolnay data
+```{r}
+va_geo_filtered1 %>% 
+  count(in_state) %>% 
+  mutate(pct = (n/(sum(n)))) %>% 
+  arrange(desc(n))
+
+#There were 7 in-state stories, about 11% all VA lynching coverage, total 65 lynching stories published in VA papers, 
+
+#There were 12 in-state stories, about 17% all MS lynching coverage, total 70 lynching stories published in MS papers, 
+
+lynch_geocoded_10.8 %>% 
+  filter(newspaper_state_code=="VA") %>% 
+  count(in_state) %>% 
+  mutate(pct = (n/(sum(n)))) %>% 
+  arrange(desc(n))
+
+#Unfiltered VA coverage
+#13 in-state stories, or 11% of the total 117 lynching stories published in VA papers
+
+
+#Unfiltered MS coverage
+#14 in-state stories, or 18% of the total 79 lynching stories published in MS papers
+
+```
+
+
+### Memo Nov. 21
+
+We analyzed coverage of in-state lynchings among southern newspapers. Our sample of Georgia newspapers devoted 13% of their lynching coverage to in-state events; overall, Georgia newspapers accounted for 12% of all lynchings, according to Tolnay and Beck.  Mississippi newspapers devoted 17% of their lynching coverage to in-state events; Mississippi accounted for 14% of all lynchings.
+
+Our sample of Georgia newspapers showed they basically met the percentage of coverage expected from lynchings in their state. Mississippi newspapers had more coverage on a percentage basis than their overall share of lynchings. 
+
+Georgia newspapers in the Library of Congress sample covered about 7 in-state stories, about 13% of the total 54 lynching stories in Georgia that were possible to cover during the available dates. 
+
+This analysis is based on a geocoded sample of 201 lynching articles in Georgia newspapers. Overall, there were 685 reported lynching in Georgia but our limited sample did not cover all of the years of the reported lynchings. To control for this, we determined the exact dates of all Georgia newspapers published in Chronicling America. And then we matched that against the reported lynchings, providing a 21-day span to accomodate varying publishing and news gathering schedules. 
+
+We also found a similar gap in the in-state coverage of Mississippi lynchings. There were 12 in-state stories, about 17% all MS lynching coverage, total 70 lynching stories published in MS papers. 
+
+This estimate was based on a geocoded sample of 79 Mississippi newspapers; overall, there were 830 Mississippi lynchings, from 1865-2011. 
+
+### Tolnay Lynching Percentages
+```{r}
+tt <- tolnay_beck %>% 
+  count(lynch_state) %>% 
+  mutate(pct = (n/(sum(n)))) %>% 
+  arrange(desc(n))
+
+
+
+```
+
+
+
+#-----------------------------------------------------------------------------
+# Notes
+#-----------------------------------------------------------------------------
+### LOC scraper for each edition by LCCN
+```{r}
+#This test script builds a dataframe for each newspaper by date in the LOC collection
+library(jsonlite)
+
+#qq <- fromJSON("https://chroniclingamerica.loc.gov/lccn/sn82015137.json", flatten = TRUE) 
+qq <- fromJSON("https://chroniclingamerica.loc.gov/lccn/sn82015137.json") 
+
+
+
+
+df1 <-(qq[["issues"]]) %>% 
+  as.data.frame()
+
+name1 <- as.character(qq["name"])
+place1 <- as.character(qq["place"])
+city1 <- as.character(qq["place_of_publication"])
+lccn1 <- as.character(qq["lccn"])
+
+df1 <- df1 %>% 
+  mutate(name = name1,
+         place = place1,
+         lccn = lccn1,
+         city = city1)
+
+#wrap this into a function and loop to extract data from the list of 2,143 lccns "snlist"
+
+
+
+#http://zevross.com/blog/2015/02/12/using-r-to-download-and-parse-json-an-example-using-data-from-an-open-data-portal/
+#https://stackoverflow.com/questions/69716264/how-do-i-extracting-elements-from-a-complicated-nested-json-file-in-r
+
+```
+
+
+#Earlier scraper didnt work
+
+```{r}
+
+# Load the necessary libraries
+library(jsonlite)
+library(dplyr)
+
+# Define the function
+extract_data <- function(lccn_number) {
+  # Replace the final string in the URL with the LCCN number
+  url <- paste0("https://chroniclingamerica.loc.gov/lccn/", lccn_number, ".json")
+  
+  # Use fromJSON to read the JSON data from the URL into a data frame
+  qq <- fromJSON(url)
+  
+  # Extract the issues data and convert it to a data frame
+  df <- qq[["issues"]] %>% as.data.frame()
+  
+  # Extract the other data
+  name <- as.character(qq["name"])
+  place <- as.character(qq["place"])
+  city <- as.character(qq["place_of_publication"])
+  lccn <- as.character(qq["lccn"])
+  
+  # Add the other data to the data frame
+  df <- df %>% mutate(name = name, place = place, lccn = lccn, city = city)
+  
+  # Return the data frame
+  return(df)
+}
+
+# Create a list of LCCN numbers
+#list_lccn <- c("sn82015137", "sn83030313", "sn84026749")  # Replace with your actual list
+list_lccn <- ga_sn %>% 
+  select(sn) %>% 
+  as.list()
+
+# Initialize an empty data frame to store all the results
+all_results <- data.frame()
+
+# Loop through the list of LCCN numbers
+for (lccn_number in list_lccn) {
+  # Extract the data for the current LCCN number
+  df <- extract_data(lccn_number)
+  
+  # Add the data to the all_results data frame
+  all_results <- rbind(all_results, df)
+}
+
+
+
+
+```
+
+##Compare total to southern papers
+
+```{r}
+
+# Printing Hate Main Index of Newspapers, 60,042 entries
+new_main_index <- read.csv("../data/mainindex_10_30.csv")
+
+#7162 articles with the fixed URL. Includes Black Press
+master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
+
+
+south <- c("Alabama", "Mississippi", "Georgia", "South Carolina", "North Carolina", "Florida", "Virgina", "Tennessee", "Louisiana", "Arkansas", "Texas")
+
+southern_main <- new_main_index %>% 
+  filter(newspaper_state_clean == "AL" | newspaper_state_clean == "MS" | newspaper_state_clean == "GA" | newspaper_state_clean == "SC" | newspaper_state_clean == "NC" | newspaper_state_clean == "FL" | newspaper_state_clean == "VA" | newspaper_state_clean == "TN" | newspaper_state_clean == "LA" | newspaper_state_clean =="AR" | newspaper_state_clean =="TX" | newspaper_state_clean =="DC")
+
+write.csv(southern_main, "/Users/robwells/Code/Jour389L/output/southern_main_index.csv")
+
+
+
+southern_EXTRACTED <- master_article_index_10.19 %>% 
+  filter(newspaper_state == "Alabama" | newspaper_state == "Mississippi" | newspaper_state == "Georgia" | newspaper_state == "South Carolina" | newspaper_state == "North Carolina" | newspaper_state == "Florida" | newspaper_state == "Virginia" | newspaper_state == "Tennessee" | newspaper_state == "Louisiana" | newspaper_state =="Arkansas" | newspaper_state =="Texas" | newspaper_state =="District of Columbia")
+
+write.csv(southern_EXTRACTED, "/Users/robwells/Code/Jour389L/output/southern_extracted_index.csv")
+
+
+```
+
+
+# New Index for Exractors
+
+
+```{r}
+# Extractor
+# –match the southern_main_index and southern_extracted_index files by:
+# –State
+# –Date
+# –sn
+# 
+# Do an anti_join (all pages that havent been extracted) - this will be the dataframe of about 10,000 entries that dylan etc will work on.
+
+southern_EXTRACTED <- read.csv("/Users/robwells/Code/Jour389L/output/southern_extracted_index.csv")
+
+southern_main <- read.csv("/Users/robwells/Code/Jour389L/output/southern_main_index.csv")
+
+southern_main$url2 <- str_replace_all(southern_main$URL , pattern = fixed('pages//'), replacement = fixed('pages/'))
+
+
+southern_EXTRACTED$state2 <- state.abb[match(southern_EXTRACTED$newspaper_state, state.name)]
+
+southern_EXTRACTED <- southern_EXTRACTED %>% 
+  mutate(state3 = case_when(
+    str_detect(newspaper_state, "District of Columbia") ~ "DC",
+    FALSE ~ newspaper_state
+  ))
+
+southern_EXTRACTED <- southern_EXTRACTED %>% 
+  mutate(state4 = paste0(state2, state3))
+
+southern_EXTRACTED$state4  <- str_replace_all(southern_EXTRACTED$state4 , pattern = fixed('NA'), replacement = fixed(''))
+
+southern_EXTRACTED <- subset(southern_EXTRACTED, select = -c(state2, state3, state4))
+
+southern_EXTRACTED <- subset(southern_EXTRACTED, select = -c(state4))
+
+southern_EXTRACTED <- southern_EXTRACTED %>% 
+  rename(state = state4)
+
+southern_EXTRACTED$sn1  <- trimws(southern_EXTRACTED$sn)
+southern_main$sn1  <- trimws(southern_main$sn)
+
+#the ordering matters! big -> small
+to_extract <- southern_main %>% 
+  anti_join(southern_EXTRACTED, by=c("sn1", "date"))
+
+to_extract$url2 <- str_replace_all(to_extract$URL , pattern = fixed('pages//'), replacement = fixed('pages/'))
+
+write.csv(to_extract, "../output/southern_articles_to_extract.csv")
+
+
+```

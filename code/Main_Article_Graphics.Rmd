@@ -1,0 +1,587 @@
+---
+title: "Main Article Graphics"
+author: "Rob Wells"
+date: "2024-04-5"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+This notebook has the code for all of the graphics (or links to them) for "Lynching and the Press, 1789-1963."	
+
+
+# Sample of Lynching Coverage
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+#install.packages("sampler")
+library(sampler)
+#install.packages("rio")
+library(rio)
+#install.packages("kableExtra")
+#install.packages("formattable")
+library(formattable)
+library(kableExtra)
+library(knitr)
+library(here)
+here::here('/Users/robwells/Code/hcij_lynching_phase_two')
+```
+
+Next, we import an index of lynching coverage -- 60,042 pages -- captured by these search terms.
+
+# Import Data
+```{r}
+
+#DEC 27 VER
+index <- read_csv("../data/main_index_dec_28_2023.csv")
+
+#SKIP TO LINE XXX AND SKIP BUILDING OF THE BORDER DATA, ALL INCLUDED IN THE ABOVE UPDATED FILE
+
+#Nov 13 fix
+# index <- read.csv("../data/main_index_with_names_111323.csv")
+# index <- janitor::clean_names(index) %>% 
+#     mutate(date = lubridate::ymd(date)) 
+
+#Nov 13 main index lacks the page numbers. they are on the feb 6 index
+index2 <- read_csv("../data/index_feb6.csv") %>%
+  as.data.frame()
+
+# pages <- index2 %>% 
+#   select(page, sn, year, month, day) %>% 
+#   mutate(date = paste(month,day,year, sep = "/")) %>% 
+#   mutate(date = as.Date(date, "%m/%d/%Y")) 
+# 
+# #attempt to match page numbers loses 3,527 records
+# index_new <- index %>% 
+#  inner_join(pages, by=c("sn", "date", "year", "month", "day")) %>% 
+#   distinct(sn, date, year, month, day, .keep_all = TRUE)
+
+```
+
+A stratified random sample by year using proportional allocation.
+
+```{r}
+#sample code: ssampcalc(df, n, strata, over=0)
+
+x <- ssampcalc(index, n=60042, strata=year, over=0.5)
+x <- janitor::clean_names(x)
+x
+
+#Fact check
+#sum(x$nh)
+#nh is the total pages per year
+#wt[,1] is the percentage of the total corpus (60042 pages)
+#Shows peak media coverage of lynching activity between 1893-1910
+#Peak year for coverage was 1903, with 2971 pages and 4.94% of all pages
+
+
+
+```
+
+# Tolnay Beck Bailey Victim Data - Compare Trends with News Coverage
+
+The University of Illinois holds the Tolnay_Bailey_Victim_Data of all known lynching cases from 1882-1929.
+
+\#<https://uofi.app.box.com/s/ffmqd2rjxrdt1tvxl38d/file/110041209555>
+
+There are 2,249 lynching cases in this database, again from 1882-1929
+
+There is also the Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020, probable and confirmed lynchings.
+https://app.box.com/s/99ggc6epn4rdvritke0h/file/992017683748
+
+**Our newspaper research reaches back much earlier than this dataset.** We have identified news reports of lynching as early as 1789.
+
+**Below, we compare the frequency of news coverage to the Tolnay victims list.**
+
+```{r}
+tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+  as.data.frame()
+
+tolnay_beck <- janitor::clean_names(tolnay_beck)
+# This contains
+# tolnay_beck	5871 confirmed and probable	
+
+```
+
+```{r}
+tolnay_beck %>% 
+  count(status)
+
+```
+
+```{r}
+tolnay_beck <- tolnay_beck %>% 
+  mutate(
+    status_clean = str_to_lower(status)) 
+  
+
+tolnay_beck$status_clean <- stringr::str_trim(tolnay_beck$status_clean)
+
+tolnay_beck %>% 
+  count(status_clean) 
+```
+
+```{r}
+tolnay_beck <- tolnay_beck %>% 
+  mutate(
+    status_clean = case_when(
+      status_clean == 'coincident death' ~ 'coincidental death',
+      status_clean == 'possiible lynching' ~ 'possible lynching',
+      TRUE ~ status_clean
+    ))
+
+install.packages('htmlTable')
+library(htmlTable)
+
+tolnay_counts <- tolnay_beck %>% 
+ count(status_clean) %>%
+  rename(Total = n, Type = status_clean) %>% 
+  mutate(Percent_Total = round(Total/5871, 3)) %>% 
+  mutate(Percent_Total = formattable::percent(Percent_Total)) %>% 
+  arrange(desc(Total))
+
+#install.packages("rempsyc")
+library(rempsyc)
+
+nice_table(tolnay_counts, short = TRUE)
+
+library(kableExtra)
+kbl(tolnay_counts) %>%
+  kable_paper(full_width = F) %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow")
+
+
+tolnay_counts %>%
+  # arrange(desc(n)) %>% 
+ #kbl(caption = "Lynching Totals", font_size = 30) %>%
+  kbl(caption = "Lynching by type, Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020", font_size = 24) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow") 
+
+#Tolnay Beck Lynch Totals 4_14_2023.png
+ 
+```
+
+```{r}
+tolnay_events <- tolnay_beck %>% 
+  select(year, status_clean) %>% 
+group_by(year) %>% 
+  count(status_clean)
+
+tolnay_events %>% 
+  pivot_wider(names_from = status_clean, values_from = n)
+
+
+
+```
+
+
+```{r}
+tolnay_beck %>% 
+count(year) %>% 
+   group_by(year) %>% 
+#Sandwich it onto a simple ggplot
+  ggplot(aes(x = year, y = n, fill = n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Actual, Threatened Lynchings, 1865-2020", 
+       subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
+       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by Rob Wells, 4/14/2023",
+       y="Count",
+       x="Year")
+#Actual, Threatened Lynchings Tolnay 4_14_2023
+```
+
+
+```{r}
+tolnay_beck %>% 
+  select(year, status_clean) %>% 
+group_by(year) %>% 
+  count(status_clean) %>% 
+  #Sandwich it onto a simple ggplot
+  ggplot(aes(x = year, y = n, fill = n)) +
+  geom_col(position = "dodge") + 
+  labs(title = "Actual, Threatened Lynchings, 1865-2020", 
+       subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
+       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by Rob Wells, 4/14/2023",
+       y="Count",
+       x="Year")
+
+```
+
+Year Totals - seguin_tolnay
+```{r}
+tolnay_beck_year <- tolnay_beck %>% 
+  group_by(year) %>% 
+  count(year) %>% 
+  rename(total = n) %>% 
+  mutate(pct_total = formattable::percent(total/5871, 3))
+tolnay_beck_year
+```
+
+Year Totals - Lynching Articles
+```{r}
+lynching_year <- index %>% 
+  group_by(year) %>% 
+  count(year) %>% 
+  rename(total = n) %>% 
+  mutate(pct_total = formattable::percent(total/60042, 3))
+lynching_year
+```
+
+
+
+
+
+We capture a stratified sample by year of the tolnay_beck victims.
+
+It shows peak lynching activity between 1884-1895 and a significant drop off after 1922.
+
+Our newspaper research has broadly similar findings.
+
+```{r}
+#Determine sample size by strata using proportional allocation
+#ssampcalc(df, n, strata, over=0)
+
+xx <- ssampcalc(tolnay_beck, n=5871, strata=year, over=0.5)
+xx
+
+```
+
+# Ida Wells Graphic - Updated Version April 2024
+```{r}
+combo2 <- lynching_year %>% 
+  right_join(tolnay_beck_year, by="year") %>% 
+  filter(year <="1963")
+
+combo2 <- combo2 %>% 
+  rename(news_total = total.x, news_pct = pct_total.x, lynch_total = total.y, lynch_pct = pct_total.y)
+
+```
+
+
+
+
+```{r}
+#plot it
+pl <- ggplot(data = combo2, aes(x = year))
+pl <- pl + geom_line(aes(y=lynch_pct), colour = "blue")
+pl <- pl + geom_line(aes(y=news_pct), colour = "red")
+pl <- pl + scale_y_continuous(labels = scales::percent)
+pl <- pl + scale_x_continuous(breaks=c(1860, 1865, 1870, 1875, 1880, 1885, 1890, 1895, 1900, 1905, 1910, 1915, 1920, 1925, 1930, 1935, 1940, 1945, 1950, 1955, 1960)) 
+pl <- pl + theme(axis.text.x = element_text(angle=90)) 
+pl <- pl + labs(x = "Year", y = "Pct of whole")
+pl <- pl + labs(title = "Media Coverage vs Lynchings, 1865-1963", 
+        subtitle = "Media Coverage (Red) vs. Actual Victims (Blue), pct of whole",
+        caption = "Tolnay_Beck Victims n = 5871. Media n = 57,905 pages. Graphic by Rob Wells, 2/10/2024")
+
+ggsave("../output_images_tables/ida-b_wells_graph_2_10_2024.png", device = "png",width=9,height=6, dpi=800)
+
+pl
+```
+
+
+
+```{r}
+#focus on the change in 1890 - 1920
+combo3 <- combo2 %>% 
+  filter(year >= "1890" & year <= "1920") %>% 
+  select(year, news_pct, lynch_pct)
+
+plx <- ggplot(data = combo3, aes(x = year))
+plx <- plx + geom_line(aes(y=lynch_pct), colour = "blue")
+plx <- plx + geom_line(aes(y=news_pct), colour = "red")
+plx <- plx + scale_x_continuous(breaks=c(1890:1920)) 
+plx <- plx + scale_y_continuous(labels = scales::percent)
+plx <- plx + theme(axis.text.x = element_text(angle=90)) 
+plx <- plx + labs(x = "Year", y = "Pct of whole")
+plx <- plx + labs(title = "Media Coverage vs Lynchings, 1890-1920", 
+        subtitle = "Media Coverage (Red) vs. Actual Victims (Blue), pct of whole",
+        caption = "Tolnay_Beck Victims n = 5871. Media n = 57,905 pages. Graphic by Rob Wells, 2/10/2024")
+
+ggsave("../output_images_tables/detail_ida-b_wells_graph_4_4_2024.png", device = "png",width=9,height=6, dpi=800)
+
+plx
+```
+
+
+###Bar Chart 1890 - 1930
+```{r}
+df <- combo3 %>%
+  pivot_longer(!year, names_to = "type", values_to = "weight")
+  
+ ggplot(df, aes(x=year, y=weight, fill=type)) +
+    geom_bar(stat='identity', position='dodge') +
+   scale_x_continuous(labels = c(seq(1890, 1930, 5)), breaks = seq(1890, 1930, 5)) +
+   labs(title = "Media Coverage Exceeds Actual Lynchings After 1893", 
+        subtitle = "Weighted Samples: Media Coverage (Red) vs. Actual Victims (Blue)",
+        caption = "tolnay_beck Victims n = 5871. Media n = 57,905 pages. Graphic by Rob Wells, 2/10/2024")
+
+#ggsave(here::here("../hcij_lynching_phase_two/narratives/output_images_tables/media_lynching_2.png"),device = "png",width=9,height=6, dpi=800)
+
+
+```
+
+
+# Counts of Words and Articles
+
+```{r}
+#loads text of 3500 articles
+#lynch <- read_csv("../data/articles_aug_25.csv")
+#loads text of 6448 articles predominantly white articles 
+white_lynch <- read.csv("../data/articles_oct_19.csv")
+#loads text of 714 bp articles: #65257 rows only the bp files. 
+onlybptext <- read.csv("../data/only_bp_text.csv")
+
+#loads xxx join 714 articles + 358 LOC articles xxx black press articles
+#76020 rows of BP text data for tokenization 
+bp_text <- read.csv("../data/black_press_article_text_oct_19.csv")
+
+lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv")
+
+lynch <- read.csv("../data/articles_oct_19.csv")
+
+```
+
+#Building lynch DF - All Stories: Count words by story
+```{r}
+# THIS IS ALREADY PART OF lynch <- read.csv("../data/articles_oct_19.csv")
+
+# x <- stringi::stri_count_words(lynch$sentence, "\\w+") %>% 
+#   as.data.frame() %>% 
+#   rename(words = ".")
+# 
+# lynch <- cbind(lynch, x)
+# 
+y <- lynch %>% 
+   select(filename, sentence, words, year, newspaper_name, url)
+# 
+# # append decade information for aggregation
+y$decade <- paste0(substr(y$year, 0, 3), "0")
+```
+
+#Building onlybptext
+#Building lynch DF - All Stories: Count words by story
+```{r}
+# b <- stringi::stri_count_words(onlybptext$sentence, "\\w+") %>%
+#   as.data.frame() %>%
+#   rename(words = ".")
+# 
+# onlybptext <- cbind(onlybptext, b)
+
+bb <- onlybptext %>% 
+   select(filename, sentence, words, year, newspaper_name, url)
+# 
+# # append decade information for aggregation
+bb$decade <- paste0(substr(bb$year, 0, 3), "0")
+```
+
+
+```{r}
+
+yyy <- rbind(bb, y)
+
+##Average Word Count in Lynching News Coverage by decade
+z <- yyy %>% 
+  select(filename, newspaper_name, url, words, decade) %>% 
+  group_by(filename, decade) %>% 
+  summarize(total=sum(words))
+
+#Count by decade, filter after 1960 
+lynch_word_decade <- z %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+  summarize(avg_words=mean(total, na.rm=TRUE)) %>% 
+  mutate(avg_words = round(avg_words, 0)) %>% 
+  filter(!decade>1960)
+
+
+#average words per decade and total article count
+lynch_word_decade <- z %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+  summarise(
+    avg_words = mean(total, na.rm = TRUE),
+    num_articles = n()
+  ) %>% 
+  mutate(avg_words = round(avg_words, 0)) %>% 
+   filter(!decade>1960)
+
+```
+#Figure7_avg_word_count_dec_26.png
+```{r}
+lynch_word_decade %>% 
+  ggplot(aes(x = decade, y = avg_words,fill = avg_words)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Average Word Count in Lynching News Coverage",
+       subtitle = "Based in 7,162 extracted articles, 1805-1969",
+       caption = "Graphic by Rob Wells, 12-26-2023",
+       y="Average Article Word Count",
+       x="Decade")
+
+ggsave("../output_images_tables/Article_Images/Figure7_avg_word_count_dec_26.png",device = "png",width=9,height=6, dpi=800)
+
+
+```
+
+#Figure 8: Page Placement, Lynching Coverage, 1789-1963
+See Lynching vs Media Coverage.rmd, Line 221
+/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Lynching vs Media Coverage.Rmd
+Page One Analysis
+Next, we count the number of articles by page number. About 27% of all lynching articles were on Page One.
+
+
+#Figure 9 Page 1 stories by decade
+See Lynching vs Media Coverage.rmd, Line 252
+/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Lynching vs Media Coverage.Rmd
+
+#Figure 10: Mob coverage, characterization. Click here for interactive version. https://datawrapper.dwcdn.net/fm9BS/7/
+Kushboo graphic.
+https://datawrapper.dwcdn.net/fm9BS/7/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+#Fig. 11: Lynching Expected. (1902, July 23). Alexandria Gazette. 
+
+#Figure 12: Newspaper, lynch mobs and justice narrative. Click here for interactive version. https://datawrapper.dwcdn.net/5zp1f/3/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+decade_percents_Justice
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+#Figure 13: 'Lynching as justice' least likely in Northeast newspapers.
+https://datawrapper.dwcdn.net/GJ6s9/4/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+#Figure 14: Common narratives in Black press coverage of lynching
+in Black Papers Topic Modeling, 3_16_2023.rmd
+/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Black Papers Topic Modeling_3_16_2023.Rmd
+
+#Figure 15 mainstrean_topics_june27.png
+in Mainstream Papers topic Modeling.rmd, Line 224
+/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Mainstream Papers Topic Modeling.Rmd
+
+#Figure 16: Common two-word phrases in Black, white press by decade, 1900-1930s. Interactive graphic has details: https://infogram.com/group-3-combined-press-word-cloud-1h1749vp70lml6z. Graphic by Hannah Ziegler
+
+#Figure 17: The Appeal, St. Paul, Minn., Oct. 15, 1904. Pg. 2
+
+
+#Black Press: Count words by story
+```{r}
+black <- bp_text
+
+xx <- stringi::stri_count_words(black$sentence, "\\w+") %>% 
+  as.data.frame() %>% 
+  rename(words = ".")
+
+black <- cbind(black, xx)
+
+#65257 rows only the bp files. 
+onlybptext <- filter(black, grepl("bp", filename))
+#write.csv(onlybptext,("../data/only_bp_text.csv"))
+
+yy <- black %>% 
+  select(filename, sentence, words, year)
+
+# append decade information for aggregation
+yy$decade <- paste0(substr(yy$year, 0, 3), "0")
+
+
+zz <- yy %>% 
+  select(filename, words, decade) %>% 
+  group_by(filename, decade) %>% 
+  summarize(total=sum(words))
+
+#Count words by decade
+black_word_decade <- zz %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+    summarise(
+    avg_words = mean(total, na.rm = TRUE),
+    num_articles = n() )%>% 
+  mutate(avg_words = round(avg_words, 0)) 
+
+library(kableExtra)
+# black_articles_decade %>%
+  black_word_decade %>%
+  kbl(caption = "Black Press Article Totals", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow") 
+
+#1045 black press articles. join 714 articles + 358 LOC articles
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+#Count articles by year
+black_articles <- blackindex_master %>% 
+  select(filename, year) %>% 
+  group_by(year) %>%
+  count()
+
+
+black_articles_decade <- zz %>% 
+  select(decade, filename) %>% 
+  group_by(decade) %>%
+  count() %>% 
+  mutate(Pct_Total =formattable::percent(round(n/1045,2)))
+
+library(kableExtra)
+black_articles_decade %>%
+  kbl(caption = "Black Press Article Totals", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow") 
+
+```
+
+```{r}
+black_word_decade %>% 
+  ggplot(aes(x = decade, y = avg_words,fill = avg_words)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Black Press Avg Word Count in Lynching News Coverage",
+       subtitle = "Based in 1,045 extracted articles, 1892-2002",
+       caption = "Graphic by Rob Wells, 12-26-2023",
+       y="Average Article Word Count",
+       x="Decade")
+
+#ggsave("../output_images_tables/FigureX_black_press_avg_word_count_ap_19.png",device = "png",width=9,height=6, dpi=800)
+
+
+```
+
+
+
+
+
+We extracted a stratified sample of total lynching victims by year and total count of news pages by year. It shows how news coverage lagged the actual incidence of lynching until 1893, and then news coverage exceeded actual lynchings until a sharp dropoff in 1923. One conclusion from the graphic: news coverage lagged significantly during peak lynching activity in the 1890s. 
+
+One potential reason for the dropoff at 1923: Chronicling America reports that newspapers published in the United States more than 95 years ago in the public domain, and those published prior to that time may have some copyright restrictions. That would mean 1927 would be the cutoff date, as of this writing, but the issue of copyright could account for a lower sample of overall papers after that time period. 
+
+Here is the documentation on drawing a stratified sample (proportional allocation)
+
+ssamp(df, n, strata, over=1)
+
+Where:
+
+    df is object containing full sampling data frame
+    n is sample size (integer, or object containing sample size)
+    strata is variable in sampling data frame by which to stratify (e.g. region)
+    over (optional) is desired oversampling proportion (defaults to 0; takes value between 0 and 1 as input)
+
+Returns stratified sample using proportional allocation without replacement
+
+# Team: 
+
+-   Rob Wells, Ph.D., Associate Professor, University of Maryland Philip Merrill College of Journalism
+
+-   Sean Mussenden, Data Editor, Howard Center for Investigative Journalism, Senior Lecturer
+
+-   Jack Rasiel, Data Scientist, Consultant to Howard Center for Investigative Journalism
+
+-   Mary Dalrymple, Master of Arts student, Merrill College and iSchool, former Associated Press reporter
+
+    --30--

@@ -1,0 +1,1460 @@
+---
+title: "Black Press Analysis"
+author: "Rob Wells"
+date: '2023-2-16'
+output: html_document
+---
+
+```{r include=FALSE}
+#install.packages("here")
+here::here()
+library(tidyverse)
+#install.packages("tidytext")
+library(tidytext)
+library(rio)
+#install.packages("quanteda") 
+library(quanteda)
+```
+
+# Black press index from Chronicling America
+```{r}
+#243 papers from the 59,967 paper search
+black_papers <- read_csv("../data/black_papers.csv") %>% 
+  rename(newspaper_name = Title) %>% 
+  as.data.frame()
+
+black_papers <- black_papers %>% 
+  mutate(black = "Y")
+
+```
+How many Black papers in the 59,9967 articles
+Index creation of black press from LOC index
+### Create flag for Black papers in index
+```{r}
+#index of 331 (formerly 76) black articles from LOC
+blackLOC<- jackindex %>%
+   left_join(black_papers, by=c("sn"="LCCN")) %>% 
+  rename(newspaper_name = newspaper_name.x) %>% 
+  filter(black =="Y") %>% 
+  mutate (Collection = "LOC") %>% 
+  distinct(file_id2, .keep_all = TRUE)
+
+ blackLOC <- blackLOC %>% 
+   select(file_id2, newspaper_name, date, year, month, day, page, edition, mod_id, url, newspaper_state, filename, filepath, file_id, article_id, sn, Collection) 
+
+
+# blackLOC <- black_papers %>%
+#    left_join(jackindex, by=c("LCCN"="sn", "newspaper_name"))
+# 
+# blackLOC <- blackLOC %>% 
+#   select(file_id, article_id, LCCN, newspaper_name, year, month, day, page, edition, mod_id, URL, newspaper_state, filename,  filepath, black) 
+
+#write.csv(blackLOC, "../output/blackLOC_Oct_19.csv")
+```
+
+
+
+#Combine the ProQuest and the LOC indexes
+```{r}
+#index of 714 black press from proquest and some from Howard
+blackindex <- read_csv("../data/blackindex_3_9_2023.csv")
+
+
+#rename proquest to LOC column names
+blackindex <- blackindex %>% 
+   rename(article_title = Title, newspaper_name = Pub, url= DocumentURL)
+# 
+blackindex <- separate(data = blackindex, col = placeOfPublication, into = c("newspaper_city", "newspaper_state"))
+#Will need to clean and standardize states
+
+blackindex <- blackindex %>% 
+    mutate(newspaper_state1 = case_when(
+    str_detect(newspaper_state, "Pa") ~ "Pennsylvania",
+    str_detect(newspaper_state, "Ill") ~ "Illinois",
+    str_detect(newspaper_state, "Ga") ~ "Georgia",
+    str_detect(newspaper_state, "Va") ~ "Virginia",
+    str_detect(newspaper_state, "York") ~ "New_York",
+    str_detect(newspaper_state, "Angeles") ~ "California",
+    str_detect(newspaper_state, "Penn") ~ "Pennsylvania",
+    str_detect(newspaper_state, "Oh") ~ "Ohio",
+    str_detect(newspaper_state, "Pa") ~ "Pennsylvania",
+    str_detect(newspaper_city, "New") ~ "New_York",
+    str_detect(newspaper_city, "Los") ~ "Los_Angeles",
+    str_detect(newspaper_name, "New York Age") ~ "New_York",
+    str_detect(newspaper_name, "The New York Age") ~ "New_York",
+    str_detect(newspaper_name, "Pittsburgh Courier") ~ "Pennsylvania",
+    str_detect(newspaper_name, "Crusader") ~ "Louisiana",
+    str_detect(newspaper_name, "The Crusader") ~ "Louisiana",
+    str_detect(newspaper_name, "Norfolk Journal") ~ "Virginia",
+    str_detect(newspaper_name, "St Louis Argus") ~ "Missouri",
+    str_detect(newspaper_name, "The St Louis Argus") ~ "Missouri",
+    str_detect(newspaper_name, "The Guardian") ~ "Massachusetts",
+    str_detect(newspaper_name, "The Christian Educator") ~ "Michigan",
+    str_detect(newspaper_name, "Los Angeles Sentinel") ~ "California",
+    str_detect(newspaper_name, "New Journal and Guide") ~ "Virginia",
+    ))
+
+blackindex <- blackindex %>% 
+    mutate(newspaper_city = case_when(
+   str_detect(newspaper_city, "Los") ~ "Los_Angeles",
+   str_detect(newspaper_city, "New") ~ "New_York",
+   str_detect(newspaper_name, "The St Louis Argus") ~ "St_Louis",
+   str_detect(newspaper_name, "St Louis Argus") ~ "St_Louis",
+   str_detect(newspaper_name, "Pittsburgh Courier") ~ "Pittsburgh",
+   str_detect(newspaper_name, "New York Age") ~ "New_York",
+   str_detect(newspaper_name, "The New York Age") ~ "New_York",
+   str_detect(newspaper_name, "Crusader") ~ "New_Orleans",
+   str_detect(newspaper_name, "Norfolk Journal") ~ "Norfolk",
+   str_detect(newspaper_name, "New Journal and Guide") ~ "Norfolk",
+   str_detect(newspaper_name, "The Christian Educator") ~ "Battle_Creek",
+   str_detect(newspaper_name, "Los Angeles Sentinel") ~ "Los_Angeles",
+   str_detect(newspaper_name, "The Guardian") ~ "Boston",
+   TRUE ~ newspaper_city)) 
+
+
+
+# blackindex %>% 
+#   count(newspaper_name, Collection) %>% 
+#   filter(Collection =="HowardU") %>% 
+#   arrange(desc(n))
+
+#subset bp1:bp16 for date cleaning
+clean_it <- blackindex %>% 
+  filter(Index<=(16)) %>% 
+  mutate(date = lubridate::mdy(Date))
+
+clean_it <- separate(data = clean_it, col = date, into = c("year1", "month", "day"))
+
+clean_it <- clean_it %>% 
+  mutate(date=paste(month,day,year, sep="/")) %>% 
+  mutate(date = lubridate::mdy(date))
+
+blackindex1 <- blackindex %>% 
+  filter(Index>(16)) %>% 
+  mutate(date = lubridate::dmy(Date))
+
+blackindex1 <- separate(data = blackindex1, col = date, into = c("year1", "month", "day"))
+
+blackindex1 <- blackindex1 %>% 
+  mutate(date=paste(month,day,year, sep="/")) %>% 
+  mutate(date = lubridate::mdy(date))
+
+blackindex1 <- rbind(blackindex1, clean_it)
+
+blackindex <- blackindex1 %>% 
+  select(Index, File_Name, filename, article_title, date, year, newspaper_name, newspaper_city, newspaper_state1, Collection, Abstract, StoreId, Authors, documentType, issn, pages, FindACopy, startPage, filepath, url) %>% 
+  rename(newspaper_state = newspaper_state1)
+
+
+blackindex <- blackindex %>%  
+  janitor::clean_names()
+
+blackindex <- blackindex %>% 
+  mutate(black_press = "Y")
+
+#714 articles from proquest and Howard, cleaned
+write.csv(blackindex, "../output/blackindex_oct19.csv")
+
+#1045 black press articles. join 714 articles + 358 LOC articles
+blackindex_master <- blackindex %>% 
+  full_join(blackLOC, by=c("file_name"="filename", "collection"="Collection", "url", "date", "newspaper_state", "year", "filepath", "newspaper_name"))
+
+blackindex_master <- blackindex_master %>%
+   select(-c(filename)) 
+
+blackindex_master$file_name <- str_replace_all(blackindex_master$file_name, ".txt", "")
+
+
+#do this later
+
+# blackindex_master$doc_id <- str_replace_all(blackindex_master$filepath, pattern=fixed('/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08/'), replacement=fixed('') )
+# blackindex_master$doc_id <- str_replace_all(blackindex_master$doc_id, pattern=fixed('black_press/'), replacement=fixed('') )
+
+write.csv(blackindex_master, "../data/blackindex_master.csv")
+  
+#blackindex_master <- read.csv("../output/blackindex_master.csv")
+```
+
+
+### Import Data
+```{r}
+#import df created from Sean's compiler of raw text sequence 
+black <- read_csv("../data/black_press_3_9_2023.csv")
+
+#778 LOC, Proquest and Howard articles
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+#index of 714 black press from proquest and some from Howard
+# blackindex <- read_csv("../data/blackindex_3_9_2023.csv")
+
+#index of the 59,967 articles from LOC
+# index <- read_csv("../data/index_jan20.csv") %>% 
+#   as.data.frame()
+
+# index <- read_csv("../data/index_feb6.csv") %>% 
+#   as.data.frame()
+# 
+# index <- janitor::clean_names(index)
+# 
+# #index of 1 pct sample which has been checked by a coder and represents all valid entries
+# jackindex <- read_csv("../data/jackindex_march8.csv")
+```
+
+
+
+
+
+
+
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_10_19" 
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/blackLOC" 
+df <- blackLOC$filename
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+
+### Sean's compiler of raw text. 
+```{r include=FALSE}
+
+#This was run once to compile the lynch object and "articles_1pct_dec26.csv" and then used for tokenizing, etc
+
+#####################
+# Begin SM Code #####
+#####################
+
+###
+# List out text files that match pattern .txt, create DF
+###
+files <- list.files("~/Code/hcij_lynching_phase_two/black_press_all", pattern="*.txt") %>% 
+  as.data.frame() %>%
+  rename(filename = 1) 
+
+
+
+# jackindex <- rio::import("../data/july_16_article_index.csv") %>%
+#   mutate(filename = paste0(file_id,"_",article_id,".txt")) %>%
+#   inner_join(files) %>%
+#   mutate(filepath = paste0("/Users/robwells/Code/hcij_lynching_phase_two/articles_july_16/",filename))
+
+blackindex_master <- blackindex_master %>% 
+  mutate(file_name1 = paste0(file_name,".txt")) %>%
+  mutate(filepath = paste0("~/Code/hcij_lynching_phase_two/black_press_all/",file_name1))
+
+
+#The data is here
+#https://github.com/Howard-Center-Investigations/hcij_lynching_phase_two/blob/main/article_text_7_15/article_text_2022-07-14.tar.gz
+
+###
+# Define function to loop through each text file referenced in jackindex df
+###
+
+create_article_text <- function(row_value) {
+  
+  #row_value is the single argument that is passed to the function
+  # Take each row of the dataframe
+  temp <- blackindex_master %>%
+    slice(row_value)
+  
+  # Store the filename for  use in constructing articles dataframe
+  temp_filename <- temp$file_name1
+  
+  # Create a dataframe by reading in lines of a given textfile
+  # Add a filename column 
+  articles_df_temp <- read_lines(temp$filepath) %>%
+    as_tibble() %>%
+    mutate(filename = temp_filename)
+  
+  # Bind results to master articles_df
+  # <<- returns to global environment
+  articles_df <<- articles_df %>%
+    bind_rows(articles_df_temp)
+}
+
+###
+# Create elements needed to run function
+###
+
+# Create empty tibble to store results
+articles_df <- tibble()
+#running once to test
+#create_article_text(2) 
+# Create an array of numbers to loop through, from 1 to the number of rows in our index dataframe 
+row_values <- 1:nrow(blackindex_master)
+
+###
+# Execute function using lapply
+# This loops through each row of the dataframe and append results to master file
+###
+
+lapply(row_values, create_article_text)
+
+# Error: The size of the connection buffer (131072) was not large enough
+# to fit a complete line:
+# * Increase it by setting `Sys.setenv("VROOM_CONNECTION_SIZE")`
+#https://github.com/tidyverse/vroom/issues/364
+#Sys.setenv(VROOM_CONNECTION_SIZE = 10000000)
+
+
+###
+# Clean up articles_df and join to index dataframe
+###
+
+articles_df <- articles_df %>%
+  select(filename, sentence=value) %>%
+  inner_join(blackindex_master, by=c("filename"="file_name1"))
+
+write.csv(articles_df, "../data/black_press_article_text_oct_19.csv")
+
+#####################
+# End SM Code #####
+#####################
+
+# write.csv(articles_df, "articles_july_16.csv")
+# lynch <- articles_df
+# write_csv(jackindex, "jackindex_july16.csv")
+```
+
+
+
+
+
+```{r}
+#index of 790 black press from proquest, Howard, LOC
+black_years <- blackindex %>% 
+  count(year) %>% 
+  arrange(year)
+
+
+```
+
+Visualize the Black press corpus so far
+```{r}
+ggplot(black_years, aes(x=year, y=n, fill=n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+   labs(title = "Black Press Lynching Coverage Overview",
+       subtitle= "Thin Coverage in late 19th Century During Peak Violence",
+       caption= "n=790 articles from LOC, Howard U., ProQuest Newspapers. 
+       Graphic by Rob Wells. 6-26-2023",
+        y="Articles Per Year",
+       x = "Year")
+ 
+# ggsave("../output/black_lynchings_overview_6_26_2023.png",device = "png",width=9,height=6, dpi=800) 
+
+
+```
+
+
+
+
+
+# Earlier Work
+
+
+x %>% 
+  count(black)
+
+
+
+zx <- x %>% 
+  distinct()
+
+zx %>% 
+  count(file_id) %>% 
+  arrange(desc(n))
+
+#76 black papers in our existing corpus
+#1316 entries
+#Annoying - index goes from 1465 to 1472 entries
+```
+
+
+```{r}
+
+blackpaperLCCN <- black_papers %>% 
+  group_by(LCCN) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+dupes <- c("sn83016194", "sn83016810", "sn83016811", "sn84024055", "sn98058951")
+
+x <- black_papers %>% 
+  filter(LCCN =="sn83016194" | LCCN == "sn83016810" | LCCN == "sn83016811" | LCCN ==  "sn84024055" | LCCN == "sn98058951") %>% 
+  select(Title, State, LCCN, OCLC, `Persistent Link`)
+
+# c("sn83016194, sn83016810, sn83016811, sn84024055, sn98058951"))
+
+
+```
+
+# Compare ProQuest Searches
+Import data
+```{r}
+blackpress1 <- read_csv("../data/black_press_extraction_manifest_02_19_2023.csv")
+
+blackpress2 <- read_csv("../data/black_papers2_ProQuest_02_22_2023.csv")
+
+blackpress2 <- blackpress2 %>% 
+  select(Title, pubdate, pubtitle, DocumentURL, Abstract, StoreId, Authors,	documentType,	issn,	pages, placeOfPublication,	FindACopy, year,	startPage, Database)
+
+blackpress2 <- blackpress2 %>% 
+  rename(Date = pubdate, Pub = pubtitle, Collection = Database)
+
+
+
+combo <- blackpress1 %>% 
+  inner_join(blackpress2, by=c("DocumentURL", "StoreId"))
+#10 matches
+
+combo <- blackpress1 %>% 
+  inner_join(blackpress2, by=("StoreId"))
+#10 matches
+
+
+combo1 <- blackpress1 %>% 
+  inner_join(blackpress2, by=("Title"))
+#14 matches
+
+combo2 <- blackpress1 %>% 
+  full_join(blackpress2, by=c("Title"))
+#758
+combo2 <- blackpress1 %>% 
+  full_join(blackpress2, by=c("Title", "Date", "Pub", "DocumentURL", "Collection", "Abstract", "StoreId", "Authors",	"documentType",	"issn",	"pages", "placeOfPublication",	"FindACopy", "year",	"startPage"))
+#760 combined
+
+
+
+#check the duplicates - many were double entries frm New Journal and Guide
+x <- combo2 %>% 
+  group_by(Title, Pub, Date) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+black_years <- combo2 %>% 
+  group_by(year) %>% 
+  count() %>% 
+  arrange((year))
+
+
+combo3 <- combo2 %>% 
+  distinct(Title, .keep_all = TRUE)
+#Removing duplicates yields 714 articles
+
+#write.csv(combo3, "../data/black_press_extraction_manifest_02_22_2023.csv")
+
+
+```
+
+
+# -- NOTES BELOW FOR LATER ANALYSIS OF BLACK PRESS --
+
+```{r}
+list <- combo3 %>% 
+  select(Pub, year) %>% 
+  group_by(Pub) %>% 
+  count(Pub) %>% 
+  arrange(desc(n))
+
+list <- separate(data = list, col = Pub, into = c("pub1", "pub_date"), sep = "[(]", extra = "merge", fill = "right")
+  
+list1 <- list %>% 
+select(pub1) %>% 
+  group_by(pub1) %>% 
+  count(pub1) %>% 
+  arrange(desc(n))
+
+write.csv(list, "../data/proquest_black_press_missing_02_27_2023.csv")
+
+```
+
+
+
+
+# Tokenizing for all word counts
+
+```{r}
+all_text <- str_replace_all(lynch$sentence, "- ", "")
+text_df <- tibble(all_text,)
+
+# unnest includes lower, punct removal
+
+text_tokenized <- text_df %>%
+  unnest_tokens(word,all_text)
+
+text_tokenized
+
+#Remove stopwords
+
+data(stop_words)
+
+text_tokenized<- text_tokenized %>%
+  anti_join(stop_words, by = c("word" = "word")) %>%
+  filter(word != "temp_file") %>%
+  #NOT SURE IF THIS LINE SHOULD REMAIN
+  filter(word != "stories_corpus") %>%
+  filter(!grepl('[0-9]', word))
+
+# fix the script so it doesn't pick up these file names, numbers  
+# forcibly removing for now
+
+
+# Word Count
+
+text_word_ct <- text_tokenized %>%
+  count(word, sort=TRUE)
+```
+
+
+# Quanteda
+
+```{r}
+# install.packages("readtext")
+# install.packages("quanteda")
+#install.packages("quanteda.textstats") 
+#https://rdrr.io/github/quanteda/quanteda.textstat/f/README.md
+library(quanteda)
+library(quanteda.textstats)
+library(readtext)
+#lynch1 <- readtext("../sample_corpus_1pct_article_text_copy")
+#created a backup of article_text_2023-02-01 and deleted the manifest and log file because it was messing up the readtext function below
+lynch1 <- readtext(here::here("./article_text_2023-02-01"))
+```
+
+### creates index with metadata
+```{r}
+###
+# List out text files that match pattern .txt, create DF
+###
+# files <- list.files("../sample_corpus_1pct_article_text/", pattern="*.txt")
+# # files <- list.files("../article_text_7_15/article_text/", pattern="*.txt") %>% 
+#   as.data.frame() %>%
+#   rename(filename = 1) %>%
+#   filter(!str_detect(filename,"log"))
+# 
+# 
+# ###
+# # Load 638 stories provided by jack, create join column, join to files list
+# ###
+# 
+# jackindex <- read_csv("../article_text_7_15/article_text/LayoutBoxes_index.csv") %>%
+#   mutate(filename = paste0(file_id,"_",article_id,".txt")) %>%
+#   inner_join(files) %>%
+#   mutate(filepath = paste0("../article_text_7_15/article_text/",filename))
+```
+
+### adds metadata to corpus
+```{r}
+lynch1 <- lynch1 %>% 
+  inner_join(jackindex, by=c("doc_id"="filename"))
+
+##below is the code to add decade and region metadata
+
+#### Compile by decade
+lynch2 <- lynch1 %>% 
+  mutate(decade = case_when(
+         year < 1870 ~ "pre1870",
+        year >= 1870 & year <=1879 ~ "1870s",
+         year >= 1880 & year <=1889 ~ "1880s",
+         year >= 1890 & year <=1899 ~ "1890s",
+        year >= 1900 & year <=1909 ~ "1900s",
+        year >= 1910 & year <=1919 ~ "1910s",
+        year >= 1920 & year <=1929 ~ "1920s",
+        year >= 1930 ~ "post1930s"
+         ))
+
+#### Compile by region
+lynch2 <- lynch2 %>% 
+  mutate(region=newspaper_state) %>% 
+  mutate(region = case_when(region=="South Carolina" ~ "South",
+                            region=="Texas" ~ "South",
+                            region=="Louisiana" ~ "South",
+                            region=="Tennessee" ~ "South",
+                            region=="Mississippi" ~ "South",
+                            region=="Arkansas" ~ "South",
+                            region=="Alabama" ~ "South",
+                            region=="Georgia" ~ "South",
+                            region=="Virginia" ~ "South",
+                            region=="Florida" ~ "South",
+                            region=="North Carolina" ~ "South",
+                            region=="Maryland" ~ "Border",
+                            region=="Delaware" ~ "Border",
+                            region=="West Virginia" ~ "Border",
+                            region=="Kentucky" ~ "Border",
+                            region=="Missouri" ~ "Border",
+                            region=="Maine" ~ "North",
+                            region=="New York" ~ "North",
+                            region=="New Hampshire" ~ "North",
+                            region=="Vermont" ~ "North",
+                            region=="Massassachusetts" ~ "North",
+                            region=="Connecticut" ~ "North",
+                            region=="Rhode Island" ~ "North",
+                            region=="Pennsylvania" ~ "North",
+                            region=="New Jersey" ~ "North",
+                            region=="Ohio" ~ "North",
+                            region=="Indiana" ~ "North",
+                            region=="Kansas" ~ "North",
+                            region=="Michigan" ~ "North",
+                             region=="Wisconsin" ~ "North",
+                             region=="Minnesota" ~ "North",
+                             region=="Iowa" ~ "North",
+                             region=="California" ~ "North",
+                             region=="Nevada" ~ "North",
+                             region=="Oregon" ~ "North",
+                            region=="Illinois" ~ "North",
+                            region=="Nebraska" ~ "Misc",
+                            region=="Colorado" ~ "Misc",
+                            region=="North Dakota" ~ "Misc",
+                            region=="South Dakota" ~ "Misc",
+                            region=="Montana" ~ "Misc",
+                            region=="Washington" ~ "Misc",
+                            region=="Idaho" ~ "Misc",
+                            region=="Wyoming" ~ "Misc",
+                            region=="Utah" ~ "Misc",
+                            region=="Oklahoma" ~ "Misc",
+                            region=="New Mexico" ~ "Misc",
+                            region=="Arizona" ~ "Misc",
+                            region=="Alaska" ~ "Misc",
+                            region=="Hawaii" ~ "Misc",
+                            region=="District of Columbia" ~ "Misc",
+                            region=="Virgin Islands" ~ "Misc",
+                                                     TRUE~region)) 
+
+
+
+```
+
+
+```{r}
+#lower case
+lynch2$text <- tolower(lynch2$text)
+
+my_corpus <- corpus(lynch2)  # build a new corpus from the texts
+
+```
+
+
+### KWIC: Citizen analysis
+
+```{r}
+#quanteda - can add words before / after with window = X
+#https://quanteda.io/reference/kwic.html
+citizen_analysis <- kwic(my_corpus, "citizen", window = 20, valuetype = "regex") %>% as.data.frame() 
+
+citizen_analysis <- citizen_analysis %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+
+citizen_analysis %>% 
+  count(docname) %>% 
+  arrange(desc(n))
+
+#write_csv(citizen_analysis, "citizen_analysis_jan_12.csv")
+```
+
+#### Phrase Searching
+```{r}
+#Phrase searching
+#"mob law"
+#"hanged by", "lynched by", "strung up", "shot by", "burned by"
+#https://quanteda.io/reference/phrase.html
+#https://quanteda.io/reference/pattern.html
+hanged_by <- kwic(my_corpus, phrase(c("hanged by", "lynched by", "strung up", "shot by", "burned by")), window = 15, valuetype = "regex") %>% as.data.frame() 
+
+hanged_by <- hanged_by %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+#write_csv(hanged_by, "hanged_by_jan_12.csv")
+
+#lynchers to justice 
+# lynchers_to_justice <- kwic(my_corpus, phrase(c("lynchers to justice")), window = 15, valuetype = "regex") %>% as.data.frame() 
+```
+
+#### KWIC: Grand jury
+```{r}
+#grand jury 
+grand_jury <- kwic(my_corpus, phrase(c("grand jury")), window = 20, valuetype = "regex") %>% as.data.frame() 
+
+
+grand_jury <- grand_jury  %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+write_csv(grand_jury, "grand_jury_jan_12.csv")
+```
+
+#### Grand jury analysis
+```{r}
+
+#excel coded, reimporting
+grand_jury <- rio::import("grand_jury_jan_12.csv")
+
+grand_jury %>% group_by(Code) %>% 
+  filter(!Code=="") %>% 
+  summarise(count=n())   %>% 
+  distinct() %>% 
+  arrange(desc(count)) 
+
+```
+
+#### Hanged Analysis
+```{r}
+hanged_by1 <- rio::import("hanged_by_jan_12.csv")
+
+hanged_by1 %>% group_by(Mob_violence_Y_N, `Citizen_violence_Y-N`) %>% summarise(count=n())
+
+#An examination of the context of the terms "hanged by", "lynched by", "strung up", "shot by", "burned by" showed 67 articles describing mob violence and nine describing "citizens" somehow involved in a lynching.
+
+```
+
+
+#### Interview analysis
+
+```{r}
+#interview
+interview <- kwic(my_corpus, phrase(c("interview", "according to", "negro said", "stated that", "speaking", "incident", "told by", "statement", "when questioned", "when asked")), window = 40, valuetype = "regex") %>% as.data.frame() 
+
+
+interview  <- interview   %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+#no results from:
+#negro talk
+
+write_csv(interview , "interview_jan_20.csv")
+```
+#### Coded Interview analysis
+The interview Jan 20 was coded for these types of sources: Black, Confession, Government_Official, Law, Lynchers, Lynching_Victim, News_Media, Not_Relevant, Other, Repeats_Earlier, Unclear, Victim_of_Crime, Witness
+```{r}
+coded_interview <- rio::import("coded_interview_jan_20.csv")
+
+#94 articles
+# coded_interview %>% 
+#   select(file_id) %>% 
+#   group_by(file_id) %>%
+#   distinct() 
+
+sourcing <- coded_interview %>% 
+  group_by(Code) %>% 
+  summarise(count=n()) %>% 
+  mutate(pct_total =round(count/sum(count), digits=2)) %>% 
+  arrange(desc(count))
+
+write.csv(sourcing, "sourcing_jan20.csv")
+```
+
+#### Lynching - Analysis of the act
+
+    Lynching: Portrayal / Description 
+    Level of graphic detail
+    Illustrations
+    Was it a single lynching or a race massacre
+    Was it called a crime 
+    Was it called social disorder, reflects badly on community
+    Was it called justice
+    
+    keywords for lynching:
+    rope bleeding half-dead shouts of glee tree posse  swingin strung hang fiend  negro's body mob attacked mob caught mob overpowered by a mob was taken from an angry mob 
+
+
+```{r}
+#Lynching - Analysis of the act
+lynching_act <- kwic(my_corpus, phrase(c("rope", "bleeding", "shouts", "tree", "posse", "swing", "strung", "hang", "fiend", "body")), window = 40, valuetype = "regex") %>% as.data.frame() 
+
+
+lynching_act <- lynching_act  %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+#no results from:
+
+
+write_csv(lynching_act , "lynching_act_jan_25.csv")
+
+lynching_act %>% 
+  count(keyword) %>% 
+  arrange(desc(n))
+
+```
+
+
+#### Mob analysis
+```{r}
+
+mob_analysis <- kwic(my_corpus, phrase(c("mob", "masked men", "mask", "captors", "a party of", "mob", "mob attacked", "mob caught", "overpowered by a mob")), window = 50, valuetype = "regex") %>% as.data.frame() 
+
+mob_analysis <- mob_analysis %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+write_csv(mob_analysis, "mob_analysis_jan_25.csv")
+
+```
+### KWIC: Sheriff analysis
+
+```{r}
+#quanteda - can add words before / after with window = X
+#https://quanteda.io/reference/kwic.html
+sheriff_analysis <- kwic(my_corpus, "sheriff", window = 20, valuetype = "regex") %>% as.data.frame() 
+
+sheriff_analysis <- sheriff_analysis %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+write_delim(sheriff_analysis, path = "sheriff_analysis.txt", delim = ";")
+#write_csv(citizen_analysis, "citizen_analysis_jan_12.csv")
+```
+
+
+# Word and text similarity and distance
+https://content-analysis-with-r.com/2-metrics.html
+
+```{r}
+#code used to analyze "sheriff" "mob" "negro"
+corpus.sentences <- corpus_reshape(my_corpus, to = "sentences")
+dfm.sentences <- dfm(corpus.sentences, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+dfm.sentences <- dfm_trim(dfm.sentences, min_docfreq = 5)
+
+similarity.words <- textstat_simil(dfm.sentences, dfm.sentences[,"citizen"], margin = "features", method = "simple matching")
+
+x <- similarity.words %>% 
+  as.data.frame() %>% 
+  janitor::clean_names() %>% 
+  arrange(desc(simple_matching))
+
+#write.csv(x, "citizen_words.csv")
+```
+
+```{r}
+head(similarity.words[order(similarity.words[,1], decreasing = T),], 10)
+
+
+```
+#### Graphic violence
+dictionary <- data.frame(word=c("roasted","riddled", "corpse","burned","cut","corpse"))
+
+```{r}
+dictionary <- data.frame(word=c("roasted","riddled", "corpse","burned","cut","corpse"))
+
+
+corpus.sentences <- corpus_reshape(my_corpus, to = "sentences")
+dfm.sentences <- dfm(corpus.sentences, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+dfm.sentences <- dfm_trim(dfm.sentences, min_docfreq = 5)
+similarity.words <- textstat_simil(dfm.sentences, dfm.sentences[,dictionary1], margin = "features", method = "simple matching")
+
+x <- similarity.words %>% 
+  as.data.frame() %>% 
+  janitor::clean_names() %>% 
+  arrange(desc(simple_matching))
+
+# write.csv(x, "citizen_words.csv")
+```
+
+# Notes - Women
+### KWIC: Women
+
+```{r}
+#quanteda - can add words before / after with window = X
+#https://quanteda.io/reference/kwic.html
+woman_analysis <- kwic(my_corpus, "woman", window = 20, valuetype = "regex") %>% as.data.frame() 
+
+woman_analysis <- woman_analysis %>% 
+  inner_join(jackindex, by=c("docname"="filename"))
+
+#write_csv(citizen_analysis, "citizen_analysis_jan_12.csv")
+```
+
+# NOTES: TOPIC MODELING WITH LADA
+FROM https://ladal.edu.au/topicmodels.html
+
+```{r}
+# # install packages
+# install.packages("tm")
+# install.packages("topicmodels")
+# install.packages("reshape2")
+# #install.packages("ggplot2")
+# install.packages("wordcloud")
+# install.packages("pals")
+# install.packages("SnowballC")
+# install.packages("lda")
+# install.packages("ldatuning")
+# install.packages("kableExtra")
+# install.packages("DT")
+# install.packages("flextable")
+# # install klippy for copy-to-clipboard button in code chunks
+# install.packages("remotes")
+# remotes::install_github("rlesur/klippy")
+
+
+
+```
+
+```{r}
+# set options
+options(stringsAsFactors = F)         # no automatic data transformation
+options("scipen" = 100, "digits" = 4) # suppress math annotation
+# load packages
+library(knitr) 
+library(kableExtra) 
+library(DT)
+library(tm)
+library(topicmodels)
+library(reshape2)
+library(ggplot2)
+library(wordcloud)
+library(pals)
+library(SnowballC)
+library(lda)
+library(ldatuning)
+library(flextable)
+# activate klippy for copy-to-clipboard button
+klippy::klippy()
+
+
+```
+```{r}
+# load data
+# textdata <- base::readRDS(url("https://slcladal.github.io/data/sotu_paragraphs.rda", "rb"))
+
+textdata <- lynch1 %>% 
+  as.data.frame()
+
+# load stopwords
+english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# create corpus object
+corpus <- Corpus(DataframeSource(textdata))
+# Preprocessing chain
+processedCorpus <- tm_map(corpus, content_transformer(tolower))
+processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
+processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
+processedCorpus <- tm_map(processedCorpus, removeNumbers)
+processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
+processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+
+
+
+```
+
+```{r}
+# compute document term matrix with terms >= minimumFrequency
+minimumFrequency <- 5
+DTM <- DocumentTermMatrix(processedCorpus, control = list(bounds = list(global = c(minimumFrequency, Inf))))
+# have a look at the number of documents and terms in the matrix
+dim(DTM)
+#[1] 1465 4291
+
+```
+
+```{r}
+# due to vocabulary pruning, we have empty rows in our DTM
+# LDA does not like this. So we remove those docs from the
+# DTM and the metadata
+sel_idx <- slam::row_sums(DTM) > 0
+DTM <- DTM[sel_idx, ]
+textdata <- textdata[sel_idx, ]
+
+```
+
+```{r}
+# create models with different number of topics
+result <- ldatuning::FindTopicsNumber(
+  DTM,
+  topics = seq(from = 2, to = 20, by = 1),
+  metrics = c("CaoJuan2009",  "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 77),
+  verbose = TRUE
+)
+
+
+```
+```{r}
+FindTopicsNumber_plot(result)
+
+```
+
+
+```{r}
+# number of topics
+K <- 20
+# set random number generator seed
+set.seed(9161)
+# compute the LDA model, inference via 1000 iterations of Gibbs sampling
+topicModel <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25))
+
+
+```
+
+```{r}
+# have a look a some of the results (posterior distributions)
+tmResult <- posterior(topicModel)
+# format of the resulting object
+attributes(tmResult)
+
+
+```
+```{r}
+# topics are probability distributions over the entire vocabulary
+beta <- tmResult$terms   # get beta from results
+dim(beta)                # K distributions over nTerms(DTM) terms
+
+```
+
+```{r}
+# for every document we have a probability distribution of its contained topics
+theta <- tmResult$topics 
+dim(theta)               # nDocs(DTM) distributions over K topics
+
+```
+
+```{r}
+terms(topicModel, 10)
+```
+
+
+```{r}
+exampleTermData <- terms(topicModel, 10)
+exampleTermData[, 1:8]
+
+```
+
+```{r}
+exampleIds <- c(2, 100, 200)
+lapply(corpus[exampleIds], as.character)
+```
+
+
+Topic Ranking
+```{r}
+# re-rank top topic terms for topic names
+topicNames <- apply(lda::top.topic.words(beta, 5, by.score = T), 2, paste, collapse = " ")
+
+
+```
+
+```{r}
+# What are the most probable topics in the entire collection?
+topicProportions <- colSums(theta) / nDocs(DTM)  # mean probabilities over all paragraphs
+names(topicProportions) <- topicNames     # assign the topic names we created before
+sort(topicProportions, decreasing = TRUE) # show summed proportions in decreased order
+
+
+```
+
+```{r}
+soP <- sort(topicProportions, decreasing = TRUE)
+paste(round(soP, 5), ":", names(soP))
+
+
+```
+
+Counts of topic
+```{r}
+countsOfPrimaryTopics <- rep(0, K)
+names(countsOfPrimaryTopics) <- topicNames
+for (i in 1:nDocs(DTM)) {
+  topicsPerDoc <- theta[i, ] # select topic distribution for document i
+  # get first element position from ordered list
+  primaryTopic <- order(topicsPerDoc, decreasing = TRUE)[1] 
+  countsOfPrimaryTopics[primaryTopic] <- countsOfPrimaryTopics[primaryTopic] + 1
+}
+sort(countsOfPrimaryTopics, decreasing = TRUE)
+
+
+```
+
+```{r}
+so <- sort(countsOfPrimaryTopics, decreasing = TRUE)
+paste(so, ":", names(so))
+
+so <- so %>% 
+  as.data.frame()
+
+
+```
+
+```{r}
+topicModel2 <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+tmResult <- posterior(topicModel2)
+theta <- tmResult$topics
+beta <- tmResult$terms
+topicNames <- apply(terms(topicModel2, 5), 2, paste, collapse = " ")  # reset topicnames
+top5termsPerTopic <- terms(topicModel, 5)
+topicNames <- apply(top5termsPerTopic, 2, paste, collapse=" ")
+
+
+```
+
+```{r}
+# append decade information for aggregation
+textdata$decade <- paste0(substr(textdata$year, 0, 3), "0")
+
+# textdata <- textdata %>% 
+#   mutate(decade = case_when(
+#          year < 1870 ~ "pre1870",
+#         year >= 1870 & year <=1879 ~ "1870s",
+#          year >= 1880 & year <=1889 ~ "1880s",
+#          year >= 1890 & year <=1899 ~ "1890s",
+#         year >= 1900 & year <=1909 ~ "1900s",
+#         year >= 1910 & year <=1919 ~ "1910s",
+#         year >= 1920 & year <=1929 ~ "1920s",
+#         year >= 1930 ~ "post1930s"
+#          ))
+
+```
+
+
+```{r}
+# get mean topic proportions per decade
+topic_proportion_per_decade <- aggregate(theta, by = list(decade = textdata$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade)[2:(K+1)] <- topicNames
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_decade, id.vars = "decade")
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
+
+
+# NOTES: Words Within Proximity
+
+https://stackoverflow.com/questions/58187923/find-documents-with-two-words-in-a-given-proximity-in-r
+
+transcripts <- data.frame(text=c("Republicans in congress today voted on a bill","Republicans today passed a bill to allocate funds for Congress")
+dictionary <- data.frame(word=c("Congress","Capitol"))
+
+transcripts_subset <- transcripts %>%
+  filter(grepl(paste(dictionary$word, collapse="|"), text))
+  
+dictionary <- data.frame(word=c("Congress","Capitol"), stringsAsFactors = FALSE)
+
+pattern_after  <- paste0("\\b(", paste0(dictionary$word, collapse="|"), ")\\W+(?:\\w+\\W+){0,5}?(Republican(s)*|Democrat(s)*)")
+pattern_before <- paste0("\\b(Republican(s)*|Democrat(s)*)\\W+(?:\\w+\\W+){0,5}?", paste0(dictionary$word, collapse="|"), collapse="|")
+pattern <- paste0(c(pattern_after, pattern_before), collapse="|")
+pattern
+#> [1] "\\b(Congress|Capitol)\\W+(?:\\w+\\W+){0,5}?(Republican(s)*|Democrat(s)*)|\\b(Republican(s)*|Democrat(s)*)\\W+(?:\\w+\\W+){0,5}?Congress|Capitol"
+
+
+grepl(pattern, "Republicans in congress today voted on a bill", perl = TRUE, ignore.case = TRUE)
+#> [1] TRUE
+
+grepl(pattern, "Democrats today passed a bill to allocate funds for Congress", perl = TRUE, ignore.case = TRUE)
+#> [1] FALSE
+
+grepl(pattern, "A Democrat in Congress", perl = TRUE, ignore.case = TRUE)
+#> [1] TRUE
+
+
+```{r}
+transcripts <- lynch1 %>% 
+  as.data.frame()
+
+dictionary <- data.frame(word=c("roasted","riddled", "corpse","burned","cut","corpse"))
+
+transcripts_subset <- transcripts %>%
+  filter(grepl(paste(dictionary$word, collapse="|"), text))
+
+pattern_after  <- paste0("\\b(", paste0(dictionary$word, collapse="|"), ")\\W+(?:\\w+\\W+){0,10}?(negro*)")
+pattern_before <- paste0("\\b(negro*)\\W+(?:\\w+\\W+){0,10}?", paste0(dictionary$word, collapse="|"), collapse="|")
+pattern <- paste0(c(pattern_after, pattern_before), collapse="|")
+pattern
+
+x <- grepl(pattern, transcripts_subset, perl = TRUE, ignore.case = TRUE)
+
+```
+
+
+
+### subset corpus
+
+```{r}
+
+#xpre1880 <- summary(corpus_subset(my_corpus, year < 1880))
+
+
+# border_corpus <- lynch2 %>% 
+#   filter(region=="Border") %>% 
+#   corpus()
+
+# south_corpus <- lynch2 %>% 
+#   filter(region=="South") %>% 
+#   corpus()
+
+# north_corpus <- lynch2 %>% 
+#   filter(region=="North") %>% 
+#   corpus()
+
+misc_corpus <- lynch2 %>% 
+  filter(region=="Misc") %>% 
+  corpus()
+```
+
+### Topic Modeling- Subsets
+```{r}
+#change variable
+my_corpus1 <- tokens(misc_corpus, remove_numbers = TRUE,  remove_punct = TRUE)
+
+quant_dfm <- dfm(my_corpus1, 
+                remove_punct = TRUE, remove_numbers = TRUE, remove = stopwords("english"))
+
+#dfm_remove = stopwords("english"))
+# quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
+quant_dfm
+
+topfeatures(quant_dfm, 50)
+
+```
+
+```{r}
+#install.packages("stm")
+set.seed(100)
+if (require(stm)) {
+    my_lda_fit20 <- stm(quant_dfm, K = 20, verbose = FALSE)
+    plot(my_lda_fit20)    
+}
+
+```
+
+### Topic Modeling - Whole Corpus
+```{r}
+
+my_corpus1 <- tokens(my_corpus, remove_numbers = TRUE,  remove_punct = TRUE)
+
+#removes stopwords
+# quant_dfm <- dfm(my_corpus1, 
+#                 remove_punct = TRUE, remove_numbers = TRUE, remove = stopwords("english"))
+
+#keeps stopwords - needed for attribution
+quant_dfm <- dfm(my_corpus1, 
+                remove_punct = TRUE, remove_numbers = TRUE)
+
+#dfm_remove = stopwords("english"))
+# quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
+quant_dfm
+
+topfeatures(quant_dfm, 50)
+
+```
+
+
+## Keyword In Context Analysis 
+
+```{r}
+#said
+#interview
+
+
+
+said <- kwic(my_corpus, "said", valuetype = "regex") %>% as.data.frame()
+# write.csv(said, "attribution_said.csv")
+# write.csv(interviews, "attribution_interview.csv")
+
+quanteda_test <- kwic(my_corpus, "watts", valuetype = "regex") %>% as.data.frame()
+
+  
+#write.csv(quanteda_test, "quanteda_test.csv")
+
+```
+
+
+```{r}
+#install.packages("stm")
+set.seed(100)
+if (require(stm)) {
+    my_lda_fit20 <- stm(quant_dfm, K = 20, verbose = FALSE)
+    plot(my_lda_fit20)    
+}
+
+```
+
+
+# Document Term Matrix from a Corpus
+https://sicss.io/2020/materials/day3-text-analysis/basic-text-analysis/rmarkdown/Basic_Text_Analysis_in_R.html#the-document-term-matrix
+
+```{r}
+library(tidytext)
+#install.packages("tm")
+library(tm)
+lynch_DTM <- DocumentTermMatrix(my_corpus, control = list(wordLengths = c(2, Inf)))
+```
+
+
+```{r}
+inspect(lynch_DTM[1:5, 3:8])
+
+```
+
+```{r}
+tidy_lynch<- lynch2 %>%
+    select(doc_id,text) %>%
+    unnest_tokens("word", text)
+head(tidy_lynch)
+
+
+
+tidy_lynch_DTM<-
+  tidy_lynch %>%
+  count(doc_id, word) %>%
+  cast_dtm(doc_id, word, n)
+
+inspect(tidy_lynch_DTM[1:20,40:50])
+```
+
+
+# Search Phrases
+
+Count articles with 'sheriff said'  - try to get it "sheriff" (within 5 words) "said"
+https://stackoverflow.com/questions/68214543/search-for-word-phrase-from-column-in-r
+```{r}
+x <- lynch2 %>% 
+  mutate(A = +str_detect(text,str_c(c('sheriff said'), collapse = '|')),
+     B = +str_detect(text,str_c(c('sheriff warned'), collapse = '|')),
+     C= +str_detect(text, str_c(c(pattern = "\\sheriff$"), collapse = '|')))
+```
+
+
+```{r}
+checkwords=lapply(lynch1$text,
+FUN=function(str,words=c("sheriff","said"))
+{
+  sapply(strsplit(str,"\\.")[[1]],FUN=function(el){
+    any(all(sapply(words,
+           FUN=function(wd)grepl(wd,el))))
+     })
+})
+checkwords
+
+grepl("sheriff[^\\.,!?:;]*said", lynch1$text)
+
+
+
+```
+
+
+https://www.regular-expressions.info/near.html
+```{r}
+
+grepl('\b(?:"sheriff"\W+(?:\w+\W+){1,6}?"said"|"said"\W+(?:\w+\W+){1,6}?"sheriff")\b', lynch1$text)
+
+
+```
+
+
+Quanteda Notes
+https://quanteda.io/articles/pkgdown/quickstart.html
+Similarities between texts
+
+pres_dfm <- dfm(corpus_subset(data_corpus_inaugural, Year > 1980), 
+               remove = stopwords("english"), stem = TRUE, remove_punct = TRUE)
+obama_simil <- textstat_simil(pres_dfm, pres_dfm[c("2009-Obama" , "2013-Obama"),], 
+                             margin = "documents", method = "cosine")
+obama_simil
+
+
+Topic models
+
+# #-------------#
+# Appendix
+# #-------------#
+
+### Sean's compiler of raw text. 
+```{r include=FALSE}
+
+#This was run once to compile the lynch object and "articles_1pct_dec26.csv" and then used for tokenizing, etc
+
+#####################
+# Begin SM Code #####
+#####################
+
+###
+# List out text files that match pattern .txt, create DF
+###
+
+files <- list.files("../sample_corpus_1pct_article_text/", pattern="*.txt") %>% 
+  as.data.frame() %>%
+  rename(filename = 1) %>%
+  filter(!str_detect(filename,"_bak"))
+
+
+###
+# Load 848 stories provided by jack, create join column, join to files list
+###
+
+jackindex <- read_csv("../sample_corpus_1pct_article_text/stratified_sample_manifest.csv") %>%
+  mutate(filename = paste0(file_id,"_",article_id,".txt")) %>%
+  inner_join(files) %>%
+  mutate(filepath = paste0("../sample_corpus_1pct_article_text/",filename))
+
+#The data is here
+#https://github.com/Howard-Center-Investigations/hcij_lynching_phase_two/blob/main/article_text_7_15/article_text_2022-07-14.tar.gz
+
+###
+# Define function to loop through each text file referenced in jackindex df
+###
+
+create_article_text <- function(row_value) {
+  
+  #row_value is the single argument that is passed to the function
+  # Take each row of the dataframe
+  temp <- jackindex %>%
+    slice(row_value)
+  
+  # Store the filename for  use in constructing articles dataframe
+  temp_filename <- temp$filename
+  
+  # Create a dataframe by reading in lines of a given textfile
+  # Add a filename column 
+  articles_df_temp <- read_lines(temp$filepath) %>%
+    as_tibble() %>%
+    mutate(filename = temp_filename)
+  
+  # Bind results to master articles_df
+  # <<- returns to global environment
+  articles_df <<- articles_df %>%
+    bind_rows(articles_df_temp)
+}
+
+###
+# Create elements needed to run function
+###
+
+# Create empty tibble to store results
+articles_df <- tibble()
+#running once to test
+#create_article_text(2) 
+# Create an array of numbers to loop through, from 1 to the number of rows in our index dataframe 
+row_values <- 1:nrow(jackindex)
+
+###
+# Execute function using lapply
+# This loops through each row of the dataframe and append results to master file
+###
+
+lapply(row_values, create_article_text)
+
+###
+# Clean up articles_df and join to index dataframe
+###
+
+articles_df <- articles_df %>%
+  select(filename, sentence=value) %>%
+  inner_join(jackindex)
+
+
+#####################
+# End SM Code #####
+#####################
+
+#write.csv(articles_df, "articles_1pct_dec26.csv")
+#lynch <- articles_df
+#write_csv(jackindex, "jackindex_dec26.csv")
+```
+

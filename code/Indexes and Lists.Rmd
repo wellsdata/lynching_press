@@ -1,0 +1,130 @@
+---
+title: "Indexes and Lists"
+author: "Wells"
+date: "2023-11-08"
+output: html_document
+---
+
+
+```{r}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "YOUR KEY HERE")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+#install.packages("tigris")
+#install.packages("zoo")
+library(tigris)
+library(stringr)
+library(janitor)
+library(zoo)
+library(lubridate)
+library(readtext)
+
+```
+#Data Cleaning and Compiling
+Oct 29 data cleaning and updating:
+master_article_index_10.19 has 7,162 articles
+--contains 714 articles from proquest and howard university
+--331 of the LOC articles are from the black press
+--total 1,045 articles from the black press
+--the 7162 is about 12% of the total corpus
+--the 1045 Black press articles are about 1.7% of the total corpus
+
+New folder: black_press_all = 1066 black press articles
+
+# Full Library of Congress Newspaper List
+```{r}
+
+
+#Code from Khushboo Rathore
+download_loc <- "../data/newspapers_list.txt"
+download.file("https://chroniclingamerica.loc.gov/newspapers.txt", download_loc)
+
+newspaper_list <- read_delim(download_loc, delim = "|")
+
+clean_newspaper_list <- newspaper_list %>% 
+  clean_names() %>% 
+  select(state, title, lccn, oclc, issn, no_of_issues, first_issue_date, last_issue_date) %>% 
+  rename(newspaper = title, no_issues = no_of_issues, earliest_issue = first_issue_date, latest_issue = last_issue_date) %>% 
+  mutate_all(str_squish) %>% 
+  mutate(earliest_issue = lubridate::mdy(earliest_issue)) %>% 
+  mutate(latest_issue = lubridate::mdy(latest_issue))
+
+#write_csv(clean_newspaper_list, "../data/newspaper_list.csv")
+```
+
+# Printing Hate Main Index of Newspapers
+
+```{r}
+#new_main_index <- read.csv("../data/mainindex_10_30.csv")
+#full_list_clean <- read.csv("../data/main_index_with_names_111323.csv")
+#dec_28 with cleaned names, all but 1,170 newspapers named
+full_list_clean <- read.csv("../data/main_index_dec_28_2023.csv")
+
+```
+
+
+# Tolnay and Beck Lynching Inventory
+```{r}
+
+tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+  as.data.frame()
+
+tolnay_beck <- janitor::clean_names(tolnay_beck)
+
+```
+
+
+# Main index of all extracted articles
+
+```{r}
+#7162 articles with the fixed URL. Includes Black Press
+master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
+
+#1045 black press articles. join 714 articles + 358 LOC articles
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+```
+
+# Text data
+
+```{r}
+
+
+#152766 rows of text data for tokenization (6448 predominantly white press articles)
+articles_oct_19 <- read.csv("../data/articles_oct_19.csv")
+#Consists of this folder
+lynch1 <- readtext("~/Code/hcij_lynching_phase_two/articles_10_19")
+
+#76020 rows of BP text data for tokenization 
+bp_text <- read.csv("../data/black_press_article_text_oct_19.csv")
+#from this folder
+bp_lynch <- readtext("~/Code/hcij_lynching_phase_two/black_press_all")
+
+#text for just the 714 bp articles
+onlybptext <- read.csv("../data/only_bp_text.csv")
+
+```
+
+# Geocoded articles
+#Analysis
+```{r}
+#2783 articles all geocoded
+lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv")
+```
+
+
+
+
+```{r}
+ga_lynchings <- tolnay_beck %>% 
+  filter()
+
+
+```

@@ -1,0 +1,64 @@
+---
+title: "1903"
+author: "Rob Wells"
+date: "2023-10-18"
+output: html_document
+---
+# Starter code for a quick analysis of Maryland news coverage and overall lynching data
+```{r message=FALSE, warning=FALSE}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "XXXXX")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+#install.packages("janitor")
+```
+
+
+## Maryland subset
+```{r}
+full_list_clean <- read.csv("../data/main_index_dec_28_2023.csv")
+
+the1903 <- full_list_clean  %>% 
+  filter(year=="1903") 
+
+write.csv(the1903, "../output/the1903.csv")
+```
+
+### Months
+```{r}
+
+month <- the1903 %>% 
+    group_by(month) %>% 
+    count()
+
+write.csv(month, "../output/1903_month.csv")
+
+
+```
+### tolnay 1903 analysis
+```{r}
+tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+  as.data.frame()
+
+tolnay_beck <- janitor::clean_names(tolnay_beck)
+
+tolnay_1903 <- tolnay_beck %>% 
+   filter(year=="1903")  %>% 
+  select(name, year, month, day, status, lynch_county, place, method_of_death, accusation, mob_size, notes, decade) %>% 
+  arrange(year)
+
+write.csv(tolnay_1903, "../output/tolnay_1903.csv")
+
+months_tolnay <- tolnay_1903 %>% 
+  group_by(month) %>% 
+  count() %>% 
+  arrange(month)
+write.csv(months_tolnay , "../output/months_tolnay .csv")
+
+```

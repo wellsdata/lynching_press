@@ -1,0 +1,1129 @@
+---
+title: "Words Articles Decades Count Analysis"
+author: "Rob Wells"
+date: "12-26-2023"
+output: html_document
+---
+
+This workbook determines the total word count by story and then graphs it over years and decades
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+#install.packages('textdata')
+library(textdata)
+library(tidytext)
+library(quanteda)
+library(rio)
+library(googlesheets4)
+
+
+```
+
+# Tokenizing data
+
+```{r}
+#loads text of 3500 articles
+#lynch <- read_csv("../data/articles_aug_25.csv")
+#loads text of 6448 articles predominantly white articles 
+white_lynch <- read.csv("../data/articles_oct_19.csv")
+#loads text of 714 bp articles: #65257 rows only the bp files. 
+onlybptext <- read.csv("../data/only_bp_text.csv")
+
+#loads xxx join 714 articles + 358 LOC articles xxx black press articles
+#76020 rows of BP text data for tokenization 
+bp_text <- read.csv("../data/black_press_article_text_oct_19.csv")
+
+
+
+
+
+lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv")
+
+
+```
+
+#Building lynch DF - All Stories: Count words by story
+```{r}
+# THIS IS ALREADY PART OF lynch <- read.csv("../data/articles_oct_19.csv")
+
+# x <- stringi::stri_count_words(lynch$sentence, "\\w+") %>% 
+#   as.data.frame() %>% 
+#   rename(words = ".")
+# 
+# lynch <- cbind(lynch, x)
+# 
+y <- lynch %>% 
+   select(filename, sentence, words, year, newspaper_name, url)
+# 
+# # append decade information for aggregation
+y$decade <- paste0(substr(y$year, 0, 3), "0")
+```
+
+#Building onlybptext
+#Building lynch DF - All Stories: Count words by story
+```{r}
+# b <- stringi::stri_count_words(onlybptext$sentence, "\\w+") %>%
+#   as.data.frame() %>%
+#   rename(words = ".")
+# 
+# onlybptext <- cbind(onlybptext, b)
+
+bb <- onlybptext %>% 
+   select(filename, sentence, words, year, newspaper_name, url)
+# 
+# # append decade information for aggregation
+bb$decade <- paste0(substr(bb$year, 0, 3), "0")
+```
+
+
+```{r}
+
+yyy <- rbind(bb, y)
+
+##Average Word Count in Lynching News Coverage by decade
+z <- yyy %>% 
+  select(filename, newspaper_name, url, words, decade) %>% 
+  group_by(filename, decade) %>% 
+  summarize(total=sum(words))
+
+#Count by decade, filter after 1960 
+lynch_word_decade <- z %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+  summarize(avg_words=mean(total, na.rm=TRUE)) %>% 
+  mutate(avg_words = round(avg_words, 0)) %>% 
+  filter(!decade>1960)
+
+
+#average words per decade and total article count
+lynch_word_decade <- z %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+  summarise(
+    avg_words = mean(total, na.rm = TRUE),
+    num_articles = n()
+  ) %>% 
+  mutate(avg_words = round(avg_words, 0)) %>% 
+   filter(!decade>1960)
+
+```
+#FigureX_avg_word_count_dec_26.png
+```{r}
+lynch_word_decade %>% 
+  ggplot(aes(x = decade, y = avg_words,fill = avg_words)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Average Word Count in Lynching News Coverage",
+       subtitle = "Based in 7,162 extracted articles, 1805-1969",
+       caption = "Graphic by Rob Wells, 12-26-2023",
+       y="Average Article Word Count",
+       x="Decade")
+
+ggsave("../output_images_tables/FigureX_avg_word_count_dec_26.png",device = "png",width=9,height=6, dpi=800)
+
+
+```
+
+#Black Press: Count words by story
+```{r}
+black <- bp_text
+
+xx <- stringi::stri_count_words(black$sentence, "\\w+") %>% 
+  as.data.frame() %>% 
+  rename(words = ".")
+
+black <- cbind(black, xx)
+
+#65257 rows only the bp files. 
+onlybptext <- filter(black, grepl("bp", filename))
+#write.csv(onlybptext,("../data/only_bp_text.csv"))
+
+yy <- black %>% 
+  select(filename, sentence, words, year)
+
+# append decade information for aggregation
+yy$decade <- paste0(substr(yy$year, 0, 3), "0")
+
+
+zz <- yy %>% 
+  select(filename, words, decade) %>% 
+  group_by(filename, decade) %>% 
+  summarize(total=sum(words))
+
+#Count words by decade
+black_word_decade <- zz %>% 
+  select(decade, total) %>% 
+  group_by(decade) %>% 
+    summarise(
+    avg_words = mean(total, na.rm = TRUE),
+    num_articles = n() )%>% 
+  mutate(avg_words = round(avg_words, 0)) 
+
+library(kableExtra)
+# black_articles_decade %>%
+  black_word_decade %>%
+  kbl(caption = "Black Press Article Totals", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow") 
+
+#1045 black press articles. join 714 articles + 358 LOC articles
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+#Count articles by year
+black_articles <- blackindex_master %>% 
+  select(filename, year) %>% 
+  group_by(year) %>%
+  count()
+
+
+black_articles_decade <- zz %>% 
+  select(decade, filename) %>% 
+  group_by(decade) %>%
+  count() %>% 
+  mutate(Pct_Total =formattable::percent(round(n/1045,2)))
+
+library(kableExtra)
+black_articles_decade %>%
+  kbl(caption = "Black Press Article Totals", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em", background = "yellow") 
+
+```
+
+```{r}
+black_word_decade %>% 
+  ggplot(aes(x = decade, y = avg_words,fill = avg_words)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Black Press Avg Word Count in Lynching News Coverage",
+       subtitle = "Based in 1,045 extracted articles, 1892-2002",
+       caption = "Graphic by Rob Wells, 12-26-2023",
+       y="Average Article Word Count",
+       x="Decade")
+
+#ggsave("../output_images_tables/FigureX_black_press_avg_word_count_ap_19.png",device = "png",width=9,height=6, dpi=800)
+
+
+```
+
+
+# Older notes from April 2023 below
+
+```{r}
+#MAKE A NEW DF THAT GROUPS BY FILE NAME, SUMMARIZES WORD COUNT SO EACH ARTICLE HAS A WORD COUNT 
+
+zzz <- yyy %>% 
+  select(filename, newspaper_name, url, words, decade) %>% 
+  group_by(filename) %>% 
+  summarize(total=sum(words)) %>% 
+  ungroup()
+
+#MAKE A NEW DF THAT GROUPS BY FILE NAME, SUMMARIZES WORD COUNT SO EACH ARTICLE HAS A WORD COUNT 
+
+zzz$file_id <- gsub('.txt',"", zzz$filename)
+library(tidyr) 
+zzz <- separate(data = zzz, col = filename, into = c('fn1', 'crap'), sep = '_', extra ='merge', fill = 'right') 
+
+zzz$fn1 <- as.numeric(zzz$fn1)
+
+zzz <- subset(zzz, select =-crap)
+
+# #MAKE A NEW DF THAT GROUPS BY FILE NAME, SUMMARIZES WORD COUNT SO EACH ARTICLE HAS A WORD COUNT 
+# z <- y %>% 
+#   select(filename, newspaper_name, url, words, decade) %>% 
+#   group_by(filename) %>% 
+#   summarize(total=sum(words)) %>% 
+#   ungroup()
+# 
+# z$file_id <- gsub('.txt',"", z$filename)
+# library(tidyr) 
+# z <- separate(data = z, col = filename, into = c('fn1', 'crap'), sep = '_', extra ='merge', fill = 'right') 
+# 
+# z$fn1 <- as.numeric(z$fn1)
+# 
+# z <- subset(z, select =-crap)
+```
+
+
+```{r}
+#data cleaning to get the original file_id on the  lynch_geocoded_10.6
+
+join <- lynch_geocoded_10.8 %>% 
+  inner_join(z, by=c("file_id"="fn1")) %>% 
+  distinct(file_id, lynch_address, .keep_all = TRUE)
+
+cols_remove <- c("X.2","X.1","X","full_total","n")
+join <- join[, !(colnames(join) %in% cols_remove)]
+
+join <- join %>% 
+  rename(old_fileid = file_id, file_id=file_id.y, words=total)
+
+lynch_geocoded_10.6 <- join %>% 
+  select(file_id, newspaper_name,lynch_address,  date, news_address, news_location_lon, news_location_lat,    newspaper_city, newspaper_state_code, year, page, url, city_lynch, state_lynch,sn, lynching.lon, lynching.lat, miles, in_state, decade, Newspaper_State, Newspaper_Region, Border, words, old_fileid)
+
+write_csv(lynch_geocoded_10.6, "../data/lynch_geocoded_10.6.csv") 
+```
+
+
+
+```{r}
+
+
+join <- lynch_geocoded_10.8 %>% 
+  left_join(z, by=c("file_id")) 
+
+join <- join %>% 
+  rename(total_words = total)
+
+join <- join %>%  
+  rename(state_lynch=lynch_state)
+
+join <- join %>%  
+  rename(file_id_old=fn1)
+
+lynch_FULL_geocoded_10.8 <- join
+write_csv(lynch_FULL_geocoded_10.8, "../output/lynch_FULL_geocoded_10.8.csv") 
+
+lynch_geocoded_10.8 <- join %>% 
+  select(file_id, newspaper_name,lynch_address,  date, news_address, news_location_lon, news_location_lat,    newspaper_city, newspaper_state_code, year, page, url, city_lynch, state_lynch,sn, lynching.lon, lynching.lat, miles, in_state, decade, Newspaper_State, Newspaper_Region, Border, total_words, file_id_old)
+
+
+write_csv(lynch_geocoded_10.8, "../data/lynch_geocoded_10.8.csv") 
+
+```
+
+# Analysis
+```{r}
+#lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv")
+
+#Count by decade, filter articles > 1500 words as noise
+summary(lynch_geocoded_10.8$total_words)
+
+
+lynch_word_decade <- lynch_geocoded_10.8 %>%
+  filter(total_words <= 1500) %>% 
+  select(decade, total_words) %>% 
+  group_by(decade) %>% 
+  summarize(avg_words=mean(total_words, na.rm=TRUE)) %>% 
+  mutate(avg_words = round(avg_words, 0)) %>% 
+  filter(!decade==1960)
+
+lynch_word_region <- lynch_geocoded_10.8 %>%
+  filter(total_words <= 1500) %>% 
+   filter(!decade==1960) %>% 
+  select(Newspaper_Region, decade, total_words) %>% 
+  group_by(Newspaper_Region, decade) %>% 
+  summarize(avg_words=mean(total_words, na.rm=TRUE)) %>% 
+  mutate(avg_words = round(avg_words, 0)) 
+ 
+
+
+```
+### Chart
+```{r}
+
+lynch_word_region %>% 
+  ggplot(aes(x = decade, y = avg_words,fill = Newspaper_Region)) +
+  geom_col(position = "dodge") + 
+  # theme(legend.position = "none") +
+  labs(title = "Average Word Count by Region in Lynching News Coverage",
+       subtitle = "Based in 2,783 extracted articles, 1800-1949",
+       caption = "Graphic by Rob Wells, 10-8-2023",
+       y="Average Article Word Count",
+       x="Decade")
+
+# ggsave("../output_images_tables/FigureX_avg_word_count_ap_16.png",device = "png",width=9,height=6, dpi=800)
+
+```
+
+
+
+# Massive and ugly data cleaning 
+```{r}
+#to get the original file_id on the  lynch_geocoded_10.6
+join <- lynch_geocoded_10.8 %>% 
+  left_join(z, by=c("file_id"))  %>% 
+  distinct(file_id.y, .keep_all = TRUE)
+
+fullfile <- join %>% 
+  count(file_id) %>% 
+  arrange(desc(n))
+
+fullfile <- fullfile %>% 
+  rename(full_fileid = file_id, full_total =n)
+
+
+currentwork <- lynch_geocoded_9.27 %>% 
+   count(file_id) %>% 
+  arrange(desc(n))
+
+
+combo <- fullfile %>% 
+  inner_join(currentwork, by=c("full_fileid"= "file_id"))
+
+combo <- combo %>% 
+  mutate(Diff =(full_total - n))
+
+combo_clean <- combo %>% 
+  filter(Diff==0)
+
+combo_unclear <- combo %>% 
+  filter(!Diff==0)
+
+cleaned <- join %>% 
+  right_join(combo_clean, by=c("file_id"="full_fileid")) %>% 
+  rename(word_count = total, file_id_old = file_id, file_id=file_id.y) 
+
+cols_remove <- c("X.2","X.1","X","crap", "full_total","n")
+cleaned <- cleaned[, !(colnames(cleaned) %in% cols_remove)]
+
+cleaned %>% 
+  count(file_id_old) %>% 
+  arrange(desc(n))
+
+cleaned1 <- join %>% 
+  right_join(combo_unclear, by=c("file_id"="full_fileid")) %>% 
+    rename(word_count = total, file_id_old = file_id, file_id=file_id.y) 
+
+#calculate average words for combo_unclear. I don't know which article students examined on the page with multiple articles, so we approximate with a word average for articles selected on that page
+
+zz <- cleaned1 %>% 
+  group_by(file_id_old) %>% 
+  mutate(avg_word=round(mean(word_count),0))
+
+cleaned1 <- zz[, !(colnames(zz) %in% cols_remove)]
+
+cleaned1 <- subset(cleaned1, select =-word_count)
+
+xyz <- bind_rows(cleaned, cleaned1)                   
+
+xyz <- xyz %>% 
+    mutate(words =paste(word_count,avg_word))
+
+lynch_geocoded_10.6 <- xyz
+
+save(xyz, file = "../output/lynch_geocoded_10.6_full.RData")
+
+xyz$words <- gsub('NA',"", xyz$words)
+xyz$words <- as.numeric(xyz$words)
+xyz$sn <- as.character(xyz$sn)
+xyz$lynching.lon <- as.character(xyz$lynching.lon)
+xyz$lynching.lat <- as.character(xyz$lynching.lat)
+xyz$miles <- as.character(xyz$miles)
+
+write.csv(xyz, "../output/lynch_geocoded_10.6_full.csv") 
+
+
+cols_remove1 <- c("avg_word","Diff","word_count","checked")
+lynch_geocoded_10.6 <- xyz[, !(colnames(xyz) %in% cols_remove1)]
+
+lynch_geocoded_10.6 <- lynch_geocoded_10.6 %>% 
+  select(file_id, newspaper_name,lynch_address,  date, news_address, news_location_lon, news_location_lat,    newspaper_city, newspaper_state_code, year, page, url, city_lynch, state_lynch,sn, lynching.lon, lynching.lat, miles, in_state, decade, Newspaper_State, Newspaper_Region, Border, words, file_id_old)
+
+write_csv(lynch_geocoded_10.6, "../data/lynch_geocoded_10.6.csv") 
+
+```
+
+
+```{r}
+black_articles %>% 
+  ggplot(aes(x = year, y = n, fill = n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Black Press Article Distribution, Lynching News Coverage",
+       subtitle = "Based in 714 extracted articles, 1892-2002",
+       caption = "Graphic by Rob Wells, 4-19-2023",
+       y="Articles per year",
+       x="Year")
+
+ggsave("../output_images_tables/FigureX_black_press_article_count_ap_19.png",device = "png",width=9,height=6, dpi=800)
+
+
+
+
+```
+
+
+
+
+# Sentiment by decade
+```{r}
+#before 1870
+pre1870 <- lynch %>% 
+  filter(year < 1870)
+
+#1870-1879
+the1870s <-  lynch %>% 
+  filter(year >= 1870 & year <=1879)
+
+#1880-1889
+the1880s <-  lynch %>% 
+  filter(year >= 1880 & year <=1889)
+
+#1890-1899
+the1890s <-  lynch %>% 
+  filter(year >= 1890 & year <=1899)
+
+#1900-1909
+the1900s <-  lynch %>% 
+  filter(year >= 1900 & year <=1909)
+
+#1910-1919
+the1910s <-  lynch %>% 
+  filter(year >= 1910 & year <=1919)
+
+#1920-1929
+the1920s <-  lynch %>% 
+  filter(year >= 1920 & year <=1929)
+
+#1930-1960
+post1930s <-  lynch %>% 
+  filter(year >= 1930)
+
+```
+
+#### Compile by decade
+```{r}
+lynch_decade <- lynch %>% 
+  mutate(decade = case_when(
+         year < 1870 ~ "pre1870",
+        year >= 1870 & year <=1879 ~ "1870s",
+         year >= 1880 & year <=1889 ~ "1880s",
+         year >= 1890 & year <=1899 ~ "1890s",
+        year >= 1900 & year <=1909 ~ "1900s",
+        year >= 1910 & year <=1919 ~ "1910s",
+        year >= 1920 & year <=1929 ~ "1920s",
+        year >= 1930 ~ "post1930s"
+         ))
+
+```
+
+# Regional classification
+```{r}
+# lynch_decade %>% 
+#   count(newspaper_state)
+lynch_decade <- lynch_decade %>% 
+  mutate(region=newspaper_state) %>% 
+  mutate(region = case_when(region=="South Carolina" ~ "South",
+                            region=="Texas" ~ "South",
+                            region=="Louisiana" ~ "South",
+                            region=="Tennessee" ~ "South",
+                            region=="Mississippi" ~ "South",
+                            region=="Arkansas" ~ "South",
+                            region=="Alabama" ~ "South",
+                            region=="Georgia" ~ "South",
+                            region=="Virginia" ~ "South",
+                            region=="Florida" ~ "South",
+                            region=="North Carolina" ~ "South",
+                            region=="Maryland" ~ "Border",
+                            region=="Delaware" ~ "Border",
+                            region=="West Virginia" ~ "Border",
+                            region=="Kentucky" ~ "Border",
+                            region=="Missouri" ~ "Border",
+                            region=="Maine" ~ "North",
+                            region=="New York" ~ "North",
+                            region=="New Hampshire" ~ "North",
+                            region=="Vermont" ~ "North",
+                            region=="Massassachusetts" ~ "North",
+                            region=="Connecticut" ~ "North",
+                            region=="Rhode Island" ~ "North",
+                            region=="Pennsylvania" ~ "North",
+                            region=="New Jersey" ~ "North",
+                            region=="Ohio" ~ "North",
+                            region=="Indiana" ~ "North",
+                            region=="Kansas" ~ "North",
+                            region=="Michigan" ~ "North",
+                             region=="Wisconsin" ~ "North",
+                             region=="Minnesota" ~ "North",
+                             region=="Iowa" ~ "North",
+                             region=="California" ~ "North",
+                             region=="Nevada" ~ "North",
+                             region=="Oregon" ~ "North",
+                            region=="Illinois" ~ "North",
+                            region=="Nebraska" ~ "Misc",
+                            region=="Colorado" ~ "Misc",
+                            region=="North Dakota" ~ "Misc",
+                            region=="South Dakota" ~ "Misc",
+                            region=="Montana" ~ "Misc",
+                            region=="Washington" ~ "Misc",
+                            region=="Idaho" ~ "Misc",
+                            region=="Wyoming" ~ "Misc",
+                            region=="Utah" ~ "Misc",
+                            region=="Oklahoma" ~ "Misc",
+                            region=="New Mexico" ~ "Misc",
+                            region=="Arizona" ~ "Misc",
+                            region=="Alaska" ~ "Misc",
+                            region=="Hawaii" ~ "Misc",
+                            region=="District of Columbia" ~ "Misc",
+                            region=="Virgin Islands" ~ "Misc",
+                                                     TRUE~region)) 
+
+
+```
+
+### Tokenize all lynching
+```{r}
+#replace variable
+
+all_text2 <- lynch_decade %>% 
+  filter(region=="Misc")
+
+all_text2 <- str_replace_all(all_text2$sentence, "- ", "")
+text_df <- tibble(all_text2,)
+
+text_tokenized <- text_df %>%
+  unnest_tokens(word,all_text2)
+
+data(stop_words)
+
+text_tokenized <- text_tokenized %>%
+  anti_join(stop_words, by = c("word" = "word")) %>%
+  filter(word != "temp_file") %>%
+  filter(word != "stories_corpus") %>%
+  filter(!grepl('[0-9]', word))
+
+#Afinn: replace variable
+sentiments_misc <- text_tokenized %>%
+  inner_join(afinn_sentiments) %>% 
+  count(value, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2)) 
+
+```
+Overall, negative sentiment was 70% of the Southern newspaper coverage but just 69% of the Northern newspaper coverage.
+
+```{r}
+sentiments_south <- sentiments_south %>% 
+  rename(south_n = n, south_pct = pct_total)
+
+sentiments_north <- sentiments_north %>% 
+  rename(north_n = n, north_pct = pct_total)
+
+sentiments_border <- sentiments_border %>% 
+  rename(border_n = n, border_pct = pct_total)
+
+sentiments_misc <- sentiments_misc %>% 
+  rename(misc_n = n, misc_pct = pct_total)
+
+
+
+sent_regions <- sentiments_south %>% 
+  inner_join(sentiments_north) %>% 
+  inner_join(sentiments_border) %>% 
+  inner_join(sentiments_misc)
+
+#write.csv(sent_regions, "sent_regions_jan6.csv")
+```
+
+#### Table of Regional Sentiment with Afinn
+```{r}
+sent_regions %>% 
+  select(value, south_pct, north_pct, border_pct, misc_pct) %>% 
+  arrange(value) %>% 
+  datatable(options = list(
+  autoWidth = TRUE,
+  columnDefs = list(
+    list(width = '10px', targets = c("value", "south_pct", "north_pct", "border_pct", "misc_pct")))
+    )
+)
+
+```
+
+### Figure 8: Regional Sentiment with Afinn
+```{r}
+
+ggplot(sent_regions, aes(x=value))+
+  geom_point(aes(y=south_pct), position=position_jitter(h=0.01, w=.09), size=4, color="orange") +
+    # geom_point(aes(y=south_pct),  size=4, color="orange") +
+  geom_point(aes(y=north_pct), position=position_jitter(h=0.01, w=.09), size=4, color="blue") +
+    geom_point(aes(y=border_pct), position=position_jitter(h=0.01, w=.09), size=4, color="red") +
+    geom_point(aes(y=misc_pct), position=position_jitter(h=0.01, w=.09), size=4, color="green") +
+   scale_y_continuous(labels = scales::percent) +
+  labs(title = "Similar Overall Sentiment by Region in Lynching News Coverage",
+       subtitle = "Based in 846 extracted articles, 1837-1960",
+       caption = "Blue = North. Orange = South. Red= Border. Green = Misc.  Graphic by Rob Wells, 1-05-2023",
+       y="Pct of Words",
+       x="Afinn Sentiment analysis. Sentiment -5 = Negative and 5 = Positive")
+# ggsave("Figure8_regional_sentiment_afinn_jan5.png",device = "png",width=9,height=6, dpi=1000)
+```
+
+Heatmap for Afinn
+```{r}
+
+sent_regions2 <- sent_regions %>% 
+  select(value, south_pct, north_pct, border_pct, misc_pct) %>% 
+  pivot_longer(
+    cols = ends_with("pct"),
+    names_to = "region",
+    values_to = "percent")
+    
+
+```
+
+#### Figure 9: Heatmap Regional Score
+```{r}
+ggplot(sent_regions2, aes(region, value)) +                           # Create heatmap with ggplot2
+  geom_tile(aes(fill = percent)) +
+  scale_fill_gradient(low= "gray", high = "red") +
+   labs(title = "News Sentiment in Lynching Coverage by Region",
+       y="Afinn Sentiment Score",
+       x="",
+       subtitle = "Based in 846 extracted articles, 1837-1960",
+       caption = "Red = higher score; Gray = lower score.\n      Afinn sentiment Lexicon. Graphic by Rob Wells, 1-6-2023")
+
+# ggsave("Figure9_heatmap_regional_sentiment_afinn_jan6.png",device = "png",width=9,height=6, dpi=1000)
+
+```
+
+
+
+### Tokenize by decade
+Each decade was manually looped through this script
+```{r}
+#replace variable
+all_text <- str_replace_all(post1930s$sentence, "- ", "")
+text_df <- tibble(all_text,)
+
+text_tokenized <- text_df %>%
+  unnest_tokens(word,all_text)
+
+data(stop_words)
+
+text_tokenized <- text_tokenized %>%
+  anti_join(stop_words, by = c("word" = "word")) %>%
+  filter(word != "temp_file") %>%
+  filter(word != "stories_corpus") %>%
+  filter(!grepl('[0-9]', word))
+
+#NRC : replace variable
+# sentiments_post1930s <- text_tokenized %>%
+#   inner_join(nrc_sentiments) %>% 
+#   count(sentiment, sort = TRUE) %>% 
+#   mutate(pct_total =round(n/sum(n), digits=2)) %>%
+#   #replace variable
+#   mutate(decade = "post1930s")
+
+#Afinn: replace variable
+sentiments_afinn_post1930s <- text_tokenized %>%
+  inner_join(afinn_sentiments) %>% 
+  count(value, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2)) %>%
+  #replace variable
+  mutate(decade = "post1930s")
+
+```
+
+NRC: Compile decades into single df
+```{r}
+sentiment_decade <- rbind(sentiments_pre1870s, sentiments_the1870s, sentiments_the1880s, sentiments_the1890s, sentiments_the1900s, sentiments_the1910s, sentiments_the1920s, sentiments_post1930s)
+
+sentiment_decade2 <- sentiment_decade %>% 
+  filter(sentiment=="positive" | sentiment =="negative") %>% 
+  select(!(n)) %>% 
+  pivot_wider(names_from = sentiment, values_from = pct_total)
+
+```
+
+Afinn: Compile decades into single df
+```{r}
+sentiments_afinn_decade <- rbind(sentiments_afinn_pre1870, sentiments_afinn_the1870s, sentiments_afinn_the1880s, sentiments_afinn_the1890s, sentiments_afinn_the1900s, sentiments_afinn_the1910s, sentiments_afinn_the1920s, sentiments_afinn_post1930s)
+
+sentiments_afinn_decade2 <- sentiments_afinn_decade %>% 
+  select(!(n)) %>% 
+  pivot_wider(names_from = value, values_from = pct_total)
+
+x <- t(sentiments_afinn_decade2) %>% 
+  as.data.frame()
+
+library(tibble)
+x <- tibble::rownames_to_column(x, "Sentiment")
+
+names(x) <- x[1,]
+x <- x[-1,]
+
+sentiments_afinn_decade2 <- x %>% 
+  rename(sentiment = decade) %>% 
+  mutate(sentiment = as.numeric(sentiment)) %>% 
+  arrange(sentiment)
+
+
+```
+
+
+
+
+### Figure 6: Afinn Sentiment by decade
+```{r}
+afinn_sentiment_plot <- ggplot(sentiments_afinn_decade, aes(x = decade, y=value, size=pct_total)) +
+  geom_point(aes(color = factor(pct_total))) +
+  theme(legend.position = "none") +
+  scale_x_discrete(limits = c('pre1870s', '1870s', '1880s', '1890s', '1900s', '1910s', '1920s', 'post1930s')) +
+  labs(title = "Negative News Sentiment Dominates in Lynching Coverage",
+       subtitle = "Based in 846 extracted articles, 1837-1960",
+       caption = "Afinn sentiment Lexicon. Graphic by Rob Wells, 1-3-2022",
+       y="Sentiment score. -5 is Negative",
+       x="Decade")
+
+afinn_sentiment_plot + scale_fill_manual(values = c("red", "yellow","green"))
+
+# ggsave("Figure6_sentiment_decade_afinn_jan3.png",device = "png",width=9,height=6, dpi=1000)
+
+```
+
+#### Total Afinn sentiment by decade
+```{r}
+sentiments_afinn_decade3 <- sentiments_afinn_decade %>% 
+  mutate(neg_pos = case_when(
+    value < 0 ~"negative",
+    value > 0 ~"positive"
+  )) %>% 
+  group_by(decade, neg_pos) %>% 
+  summarize(sum(pct_total)) %>% 
+  rename(percent = "sum(pct_total)") 
+
+# %>% 
+#   pivot_wider(names_from = neg_pos, values_from = percent)
+```
+  
+### Figure 7: Negative News Sentiment Dominates in Lynching Coverage
+```{r}
+ ggplot(sentiments_afinn_decade3, aes(x = decade, y=percent, fill=neg_pos)) +
+  geom_bar(stat="identity", position = "dodge") +
+    scale_x_discrete(limits = c('pre1870', '1870s', '1880s', '1890s', '1900s', '1910s', '1920s', 'post1930s')) +
+   scale_y_continuous(labels = scales::percent) +
+  labs(title = "Negative News Sentiment Dominates in Lynching Coverage",
+       subtitle = "Based in 846 extracted articles, 1837-1960",
+       caption = "Afinn sentiment Lexicon. Graphic by Rob Wells, 1-4-2022",
+       y="Sentiment score",
+       x="Decade")
+
+# ggsave("Figure7_sentiment_decade_afinn_jan4.png",device = "png",width=9,height=6, dpi=1000)
+```
+
+# Regional Sentiment Analysis
+```{r}
+sentiments_afinn_decade
+
+
+```
+
+
+# NRC Sentiment
+
+NRC Lexicon on Whole Corpus
+"The nrc lexicon categorizes words in a binary fashion (“yes”/“no”) into categories of positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust."
+```{r}
+# cite this lexicon
+#install.packages("textdata")
+nrc_sentiments <- get_sentiments("nrc")
+
+nrc_sentiments %>% count(sentiment)
+
+#sentiment & count
+# anger	1246			
+# anticipation	837			
+# disgust	1056			
+# fear	1474			
+# joy	687			
+# negative	3318			
+# positive	2308			
+# sadness	1187			
+# surprise	532			
+# trust	1230	
+```
+
+### Review NRC Overall Sentiment
+
+
+```{r}
+
+sentiments_all <- text_tokenized %>%
+  inner_join(nrc_sentiments) 
+
+#this dictionary assigns different values to the same word. negro is negative, sadness whereas lynch is anger, disgust, fear, negative and sadness.
+
+# word sentiment
+# 1 negro
+# negative
+# 2
+# negro
+# sadness
+# 3
+# assault
+# anger
+# 4
+# assault
+# fear
+# 5
+# assault
+# negative
+# 6
+# republic
+# negative
+# 7
+# special
+# joy
+# 8
+# special
+# positive
+# 9
+# negro
+# negative
+# 10
+# negro
+# sadness
+# 11
+# john
+# disgust
+# 12
+# john
+# negative
+# 13
+
+x <- sentiments_all %>% 
+  group_by(word) %>% 
+    count(sentiment)
+
+```
+
+### Create custom dictionary
+
+```{r}
+#We should do our own custom sentiment dictionary based on the top 500 words. 
+
+text_500 <- text_word_ct %>% 
+  filter(n >= 29)
+
+custom_dictionary <- text_500 %>%
+  inner_join(nrc_sentiments)
+
+#write.csv(custom_dictionary, "custom_dictionary.csv")
+
+```
+
+### Count Overall Sentiment with NRC
+
+```{r}
+sentiments_all <- text_tokenized %>%
+  inner_join(nrc_sentiments) %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+sentiments_all
+
+
+```
+
+
+### Figure 4: NRC Sentiment by decade
+https://afit-r.github.io/sentiment_analysis
+
+```{r}
+ggplot(sentiment_decade2,aes(x = decade)) +
+  geom_point(aes(y=negative), size=4, color="red") +
+  geom_point(aes(y=positive), size=4, color="green") +
+  scale_x_discrete(limits = c('pre1870s', '1870s', '1880s', '1890s', '1900s', '1910s', '1920s', 'post1930s')) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "News Sentiment in Lynching Coverage by Decade",
+       subtitle = "Based in 846 extracted articles, 1837-1960",
+       caption = "Red = negative sentiment; Green = positive.\n      NRC sentiment Lexicon. Graphic by Rob Wells, 12-28-2022",
+       y="Sentiment, percentage",
+       x="Decade")
+
+# ggsave("Figure4_sentiment_decade_NRC_dec28.png",device = "png",width=9,height=6, dpi=1000)
+```
+
+
+
+
+### Notes Below
+
+```{r}
+# Anger
+
+nrc_anger <- nrc_sentiments %>%
+  filter(sentiment == "anger")
+
+lynching_anger <- text_tokenized %>%
+  inner_join(nrc_anger) %>%
+  count(word, sort = TRUE)
+
+lynching_anger
+
+```
+
+```{r}
+# Anticipation
+# results / themes not as clear as anger
+
+nrc_anticipation <- nrc_sentiments %>%
+  filter(sentiment == "anticipation")
+
+lynching_anticipation <- lynching_tokenized %>%
+  inner_join(nrc_anticipation) %>%
+  count(word, sort = TRUE)
+
+lynching_anticipation
+
+```
+
+
+
+```{r}
+# Fear
+# see a reflection of the basic word count in these results
+
+nrc_fear <- nrc_sentiments %>%
+  filter(sentiment == "fear")
+
+lynching_fear <- lynching_tokenized %>%
+  inner_join(nrc_fear) %>%
+  count(word, sort = TRUE)
+
+lynching_fear
+
+```
+
+
+```{r}
+# Disgust
+# see a reflection of the basic word count in these results
+
+nrc_disgust <- nrc_sentiments %>%
+  filter(sentiment == "disgust")
+
+lynching_disgust <- lynching_tokenized %>%
+  inner_join(nrc_disgust) %>%
+  count(word, sort = TRUE)
+
+lynching_disgust
+
+```
+
+NRC Sentiment Dictionary Analysis
+
+Need to recognize these are modern dictionaries, so looking here at words in corpus that are excluded from analysis.
+
+Interesting findings - white, lynching, brown, colored. We'd likely have to modify a dictionary if sentiment analysis is a desired approach.
+
+(Also available AFINN and bing, both measures of positive and negative. Interesting approach in "Text Mining with R" where sentiment measured by chapters of books; possible application to time segments? )
+
+```{r}
+excluded <- lynching_tokenized %>%
+  anti_join(nrc_sentiments) %>%
+  count(word, sort = TRUE)
+
+excluded
+
+```
+
+# TF-IDF
+
+```{r}
+
+lynching_words <- lynching_tokenized %>%
+  count(word, sort = TRUE)
+
+lynching_words$document <- c("lynching")
+
+lynching_words
+  
+```
+
+Load in not-lynching articles.
+
+Load and clean text. 
+
+```{r}
+# Uses "notlynch_merge" script to build lynching_corpus.txt.
+
+not_lynching <- read_file("not_lynching/not_lynching.txt")
+
+# close hyphenated line breaks (handling -^ but not ^-^ per review of hyphenation patterns)
+not_lynching <- str_replace_all(not_lynching, "- ", "")
+
+# not_lynching
+
+```
+
+Convert to df for tokenization
+
+```{r}
+not_lynching_df <- tibble(not_lynching,)
+not_lynching_df
+```
+
+```{r}
+# unnest includes lower, punct removal
+
+not_lynching_tokenized <- not_lynching_df %>%
+  unnest_tokens(word,not_lynching)
+
+not_lynching_tokenized
+
+```
+
+Remove stopwords
+
+```{r}
+
+not_lynching_tokenized <- not_lynching_tokenized %>%
+  anti_join(stop_words, by = c("word" = "word")) %>%
+  filter(word != "temp_file") %>%
+  filter(word != "not_lynching") %>%
+  filter(!grepl('[0-9]', word))
+
+# fix the script so it doesn't pick up these file names, numbers  
+# forcibly removing for now
+
+not_lynching_tokenized
+
+```
+
+```{r}
+
+not_lynching_words <- not_lynching_tokenized %>%
+  count(word, sort=TRUE)
+
+not_lynching_words$document <- c("not_lynching")
+
+not_lynching_words
+
+```
+
+```{r}
+coded_for_tfidf <- rbind(lynching_words, not_lynching_words)
+coded_for_tfidf
+```
+
+
+```{r}
+
+lynching_tf_idf <- coded_for_tfidf %>%
+  bind_tf_idf(word, document, n) %>%
+  arrange(desc(tf_idf))
+
+lynching_tf_idf
+
+```
+
+```{r}
+library(forcats)
+
+lynching_tf_idf %>%
+  group_by(document) %>%
+  slice_max(tf_idf, n = 20) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(word, tf_idf), fill = document)) +
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~document, ncol = 2, scales = "free") + 
+  labs (x = "tf-idf", y = NULL)
+
+```
+
+Ideally, this would have given us a set of words that could distinguish lynching from not-lynching articles after the first cut by keyword. (Values so small, not sure this is useful, but worth diffing the output perhaps?)
+
+
+
