@@ -15,6 +15,7 @@ Word Count: 8,687
 
 
 Rob Wells, Ph.D., Philip Merrill College of Journalism, University of Maryland. ORCiD: 0000-0002-6061-558X. robwells@umd.edu
+
 Kathy Roberts Forde, Ph.D., Department of Journalism, University of Massachusetts Amherst
 Sean Mussenden, Philip Merrill College of Journalism, University of Maryland
 Mohamed Salama, Philip Merrill College of Journalism, University of Maryland
