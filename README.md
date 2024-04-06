@@ -16,9 +16,14 @@ Word Count: 8,687
 
 Rob Wells, Ph.D., Philip Merrill College of Journalism, University of Maryland. ORCiD: 0000-0002-6061-558X. robwells@umd.edu
 
-Kathy Roberts Forde, Ph.D., Department of Journalism, University of Massachusetts Amherst
+Kathy Roberts Forde, Ph.D., Department of Journalism, University of Massachusetts Amherst 
+
 Sean Mussenden, Philip Merrill College of Journalism, University of Maryland
+
 Mohamed Salama, Philip Merrill College of Journalism, University of Maryland
+
 Sasha Allen, Philip Merrill College of Journalism, University of Maryland
+
+
 
 Some of the findings were produced by students at the Philip Merrill College of Journalism, University of Maryland in a Fall 2023 research seminar called “Jour 389L: Lynching and the Press.” They are: Sasha Allen; Marwa Barakat; Hailey Closson; Jennifer Gable; Apurva Mahajan; Hannah Marszalek; Rachel McCrea; Khushboo Rathore; Emma Schmalz; Viviane Stackhouse; Hannah Ziegler. In addition, three Merrill College student researchers, Isabella Carrero-Baptista, Adrianna Navarro, and Dylan Manfre, provided important insights. Jack Raisel provided data support.
