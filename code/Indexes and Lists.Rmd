@@ -1,7 +1,7 @@
 ---
 title: "Indexes and Lists"
 author: "Wells"
-date: "2023-11-08"
+date: "2024-04-18"
 output: html_document
 ---
 
@@ -28,6 +28,14 @@ library(readtext)
 
 ```
 #Data Cleaning and Compiling
+April 18 data cleaning and compiling
+master_article_index_4_18 has 12,579 articles
+#TODO 
+#--have not added the Black press articles to it yet
+
+
+
+
 Oct 29 data cleaning and updating:
 master_article_index_10.19 has 7,162 articles
 --contains 714 articles from proquest and howard university
@@ -84,6 +92,35 @@ tolnay_beck <- janitor::clean_names(tolnay_beck)
 # Main index of all extracted articles
 
 ```{r}
+#12579 articles from LOC only. April 18 2024
+master_article_index_4_18 <- read.csv("../data/extracted_database_index_april_16.csv") %>% 
+  clean_names()
+
+
+master_article_index_4_18$url_fixed <- sub("sn\\d+/\\K.*", "", master_article_index_4_18$url, perl = TRUE)
+master_article_index_4_18$url_fixed  <- sub("/$", "", master_article_index_4_18$url_fixed)
+
+#date fixed for url
+master_article_index_4_18$date2 <- as.character(master_article_index_4_18$date)
+master_article_index_4_18$date2 <- gsub("-", "/", master_article_index_4_18$date2)
+
+
+#create sequence column
+master_article_index_4_18$seq <- sub(".*/(seq-\\d+).*", "\\1", master_article_index_4_18$url)
+
+master_article_index_4_18 <- master_article_index_4_18 %>% 
+  mutate(url2 = paste(url_fixed, year, month, day, edition, seq, "0?user_id=6", sep="/"))
+
+
+write.csv(master_article_index_4_18, "../data/master_article_index_4_18.csv") 
+
+#next: compare the dates to the first index
+
+```
+
+
+```{r}
+
 #7162 articles with the fixed URL. Includes Black Press
 master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
 

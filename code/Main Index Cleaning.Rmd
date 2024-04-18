@@ -1,12 +1,22 @@
 ---
 title: "Main Index"
-author: "Khushboo Rathore"
-date: "2023-11-01"
+author: "Khushboo Rathore & Rob Wells"
+date: "2024-4-18"
 output: html_document
 ---
+
+This script cleans the main index state fields and normalizes as much of it as possible
+
+```{r}
+library(tidyverse)
+library(janitor)
+
+```
+
+
 # CLEAN MAIN INDEX
 ```{r}
-main_index <- read_csv("../hcij_lynching_phase_two/Storage_Older_Versions/mainindex.csv")
+# main_index <- read_csv("../hcij_lynching_phase_two/Storage_Older_Versions/mainindex.csv")
 ```
 
 ## Cleaning lists
@@ -67,7 +77,9 @@ wyoming <- c("Carbo", "Wyo")
 
 ## Clean given states
 ```{r}
-# main_index <- read_csv("../data/mainindex.csv")
+#main_index <- read_csv("../data/mainindex.csv")
+main_index <- read.csv("/Users/robwells/Code/lynching_press_2024/data/mainindex_10_30.csv")
+
 
 x <- main_index %>% 
   count(newspaper_state) %>% 
@@ -137,57 +149,16 @@ y <- clean_main_index %>%
 
 #347 categories in the newspaper_states, needs to be cleaned to 50 or so categories in standard two-digit state format, ie. GA for Georgia, CA for California
 
-write.csv(clean_main_index,"../data/mainindex_10_25.csv")
+#write.csv(clean_main_index,"../data/mainindex_10_25.csv")
 
 ```
 
-## Filters for ga, ms, na titles
-```{r}
-ga_papers <- clean_main_index %>% 
-  filter(newspaper_state_clean =="GA") %>% 
-  group_by(newspaper_state_clean, newspaper_name) %>% 
-  count()
-
-#write.csv(ga_papers,"../output/ga_papers.csv")
-
-ga_papers_years <- clean_main_index %>% 
-  filter(newspaper_state_clean =="GA") %>% 
-  group_by(newspaper_state_clean, newspaper_name, year) %>% 
-  count()
-
-#write.csv(ga_papers_years,"../output/ga_papers_years.csv")
-
-
-ms_papers <- clean_main_index %>% 
-  filter(newspaper_state_clean =="MS") %>% 
-  group_by(newspaper_state_clean, newspaper_name) %>% 
-  count()
-
-#write.csv(ms_papers,"../output/ms_papers.csv")
-
-ms_papers_years <- clean_main_index %>% 
-  filter(newspaper_state_clean =="MS") %>% 
-  group_by(newspaper_state_clean, newspaper_name, year) %>% 
-  count()
-
-#write.csv(ms_papers_years,"../output/ms_papers_years.csv")
-
-
-#isolate the NAs
-df_na <- clean_main_index %>% filter(if_all(c(newspaper_state_clean), ~ is.na(.)))
-
-
-df_na %>% 
-    count(newspaper_city) %>% 
-  arrange(desc(n))
-
-
-```
 
 
 ## Clean NAs
 ```{r}
-new_main_index <- read_csv("../data/mainindex_10_25.csv")
+#new_main_index <- read_csv("../data/mainindex_10_25.csv")
+new_main_index <- clean_main_index
 
 clean_main_index <- new_main_index %>% 
   mutate(newspaper_state_clean = case_when(
@@ -231,7 +202,61 @@ no_city <- clean_main_index %>%
 no_city %>% 
   count(newspaper_state)
 
-write.csv(new_main_index,"../data/mainindex_10_30.csv")
+#write.csv(new_main_index,"../data/mainindex_10_30.csv")
+
+```
+#Clean new index on April 18 2024
+```{r}
+master_article_index_4_18 <- read_csv("/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/extracted_database_index_april_16.csv") %>% 
+  clean_names()
+
+# extracted %>% 
+#   count(newspaper_state)
+
+```
+
+
+
+## Filters for ga, ms, na titles
+```{r}
+ga_papers <- clean_main_index %>% 
+  filter(newspaper_state_clean =="GA") %>% 
+  group_by(newspaper_state_clean, newspaper_name) %>% 
+  count()
+
+#write.csv(ga_papers,"../output/ga_papers.csv")
+
+ga_papers_years <- clean_main_index %>% 
+  filter(newspaper_state_clean =="GA") %>% 
+  group_by(newspaper_state_clean, newspaper_name, year) %>% 
+  count()
+
+#write.csv(ga_papers_years,"../output/ga_papers_years.csv")
+
+
+ms_papers <- clean_main_index %>% 
+  filter(newspaper_state_clean =="MS") %>% 
+  group_by(newspaper_state_clean, newspaper_name) %>% 
+  count()
+
+#write.csv(ms_papers,"../output/ms_papers.csv")
+
+ms_papers_years <- clean_main_index %>% 
+  filter(newspaper_state_clean =="MS") %>% 
+  group_by(newspaper_state_clean, newspaper_name, year) %>% 
+  count()
+
+#write.csv(ms_papers_years,"../output/ms_papers_years.csv")
+
+
+#isolate the NAs
+df_na <- clean_main_index %>% filter(if_all(c(newspaper_state_clean), ~ is.na(.)))
+
+
+df_na %>% 
+    count(newspaper_city) %>% 
+  arrange(desc(n))
+
 
 ```
 
