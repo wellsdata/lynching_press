@@ -26,13 +26,17 @@ black_papers <- read_csv("../data/black_papers.csv") %>%
 black_papers <- black_papers %>% 
   mutate(black = "Y")
 
+
+
 ```
-How many Black papers in the 59,9967 articles
+How many Black papers in the 59,967 articles
 Index creation of black press from LOC index
 ### Create flag for Black papers in index
 ```{r}
-#index of 331 (formerly 76) black articles from LOC
-blackLOC<- jackindex %>%
+master_article_index_4_18 <- read_csv("../data/master_article_index_4_18.csv") 
+#index of 1,089 Black press articles from LOC
+#in october 2023, index of 331 (formerly 76) black articles from LOC
+blackLOC<- master_article_index_4_18 %>%
    left_join(black_papers, by=c("sn"="LCCN")) %>% 
   rename(newspaper_name = newspaper_name.x) %>% 
   filter(black =="Y") %>% 
@@ -40,7 +44,9 @@ blackLOC<- jackindex %>%
   distinct(file_id2, .keep_all = TRUE)
 
  blackLOC <- blackLOC %>% 
-   select(file_id2, newspaper_name, date, year, month, day, page, edition, mod_id, url, newspaper_state, filename, filepath, file_id, article_id, sn, Collection) 
+   select(file_id2, newspaper_name, date, year, month, day, page, edition, mod_id, url, newspaper_state, file_id, article_id, sn, Collection, black) 
+
+```
 
 
 # blackLOC <- black_papers %>%
@@ -50,8 +56,8 @@ blackLOC<- jackindex %>%
 #   select(file_id, article_id, LCCN, newspaper_name, year, month, day, page, edition, mod_id, URL, newspaper_state, filename,  filepath, black) 
 
 #write.csv(blackLOC, "../output/blackLOC_Oct_19.csv")
-```
 
+# blackLOC_Oct_19 <- read.csv("/Users/gizmofo/Code/lynching_press_2024/data/blackLOC_Oct_19.csv")
 
 
 #Combine the ProQuest and the LOC indexes
@@ -153,11 +159,11 @@ blackindex <- blackindex %>%
   mutate(black_press = "Y")
 
 #714 articles from proquest and Howard, cleaned
-write.csv(blackindex, "../output/blackindex_oct19.csv")
+# write.csv(blackindex, "../output/blackindex_oct19.csv")
 
-#1045 black press articles. join 714 articles + 358 LOC articles
+#1803 black press articles. join 714 articles + 1,089 LOC articles
 blackindex_master <- blackindex %>% 
-  full_join(blackLOC, by=c("file_name"="filename", "collection"="Collection", "url", "date", "newspaper_state", "year", "filepath", "newspaper_name"))
+  full_join(blackLOC, by=c("file_name"="file_id2", "collection"="Collection", "url", "date", "newspaper_state", "year", "newspaper_name"))
 
 blackindex_master <- blackindex_master %>%
    select(-c(filename)) 
@@ -170,6 +176,7 @@ blackindex_master$file_name <- str_replace_all(blackindex_master$file_name, ".tx
 # blackindex_master$doc_id <- str_replace_all(blackindex_master$filepath, pattern=fixed('/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08/'), replacement=fixed('') )
 # blackindex_master$doc_id <- str_replace_all(blackindex_master$doc_id, pattern=fixed('black_press/'), replacement=fixed('') )
 
+##1803 black press articles
 write.csv(blackindex_master, "../data/blackindex_master.csv")
   
 #blackindex_master <- read.csv("../output/blackindex_master.csv")

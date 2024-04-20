@@ -32,7 +32,43 @@ April 18 data cleaning and compiling
 master_article_index_4_18 has 12,579 articles
 #TODO 
 #--have not added the Black press articles to it yet
+--add 714 articles from proquest and howard university
+#TODO--331 of the LOC articles are from the black press
+#TODO--total 1,045 articles from the black press
+```{r}
+master_article_index_4_18 <- read_csv("../data/master_article_index_4_18.csv") %>% 
+  clean_names() %>% 
+  mutate(date = as_date(paste(year,month,day, sep ="/"))) %>% 
+   mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
+```
 
+
+
+```{r}
+#Add 1803 black press articles ( 714 bp articles + 1,089 LOC articles)
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+#13,311 articles
+master_article_index_4_20 <- master_article_index_4_18 %>% 
+  full_join(blackindex_master, by=c("file_id2"="file_name", "newspaper_name", "newspaper_state", "date", "year", "url", "sn", "file_id", "article_id", "page", "edition", "month", "day", "mod_id"))
+
+write.csv(master_article_index_4_20, "../data/master_article_index_4_20.csv")
+
+```
+
+
+```{r}
+  
+  
+totals_4_18 <- master_article_index_4_18 %>% 
+  count(newspaper_state) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  mutate(rank_new = dense_rank(desc(pct_whole)))
+
+
+```
 
 
 
@@ -45,6 +81,43 @@ master_article_index_10.19 has 7,162 articles
 --the 1045 Black press articles are about 1.7% of the total corpus
 
 New folder: black_press_all = 1066 black press articles
+
+```{r}
+#7162 articles with the fixed URL. Includes Black Press
+old_master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
+
+totals_10_19 <- old_master_article_index_10.19 %>% 
+  count(newspaper_state) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  rename(pct_whole_old = pct_whole, count_old = count) %>% 
+  mutate(rank_old = dense_rank(desc(pct_whole_old)))
+
+```
+
+#join and compare dfs
+
+```{r}
+compare <- totals_4_18 %>% 
+  inner_join(totals_10_19, by="newspaper_state")
+
+```
+
+```{r}
+# There are significant problems with the latest data
+# First, there are major discrepancies with the states that were extracted.
+# --Georgia, a critical state in our study, has 91 FEWER entries in the latest data
+# --Pennsylvania has 215 fewer entries
+# 
+# The difference could be the Black press entries which weren't added.
+compare %>% 
+  filter(count_old > count)
+
+
+```
+
+
 
 # Full Library of Congress Newspaper List
 ```{r}

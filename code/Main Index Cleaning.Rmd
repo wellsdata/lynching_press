@@ -77,8 +77,8 @@ wyoming <- c("Carbo", "Wyo")
 
 ## Clean given states
 ```{r}
-#main_index <- read_csv("../data/mainindex.csv")
-main_index <- read.csv("/Users/robwells/Code/lynching_press_2024/data/mainindex_10_30.csv")
+main_index <- read_csv("../data/mainindex_10_30.csv")
+# main_index <- read.csv("/Users/robwells/Code/lynching_press_2024/data/mainindex_10_30.csv")
 
 
 x <- main_index %>% 
@@ -157,8 +157,7 @@ y <- clean_main_index %>%
 
 ## Clean NAs
 ```{r}
-#new_main_index <- read_csv("../data/mainindex_10_25.csv")
-new_main_index <- clean_main_index
+new_main_index <- read_csv("../data/mainindex_10_25.csv")
 
 clean_main_index <- new_main_index %>% 
   mutate(newspaper_state_clean = case_when(
@@ -207,11 +206,11 @@ no_city %>%
 ```
 #Clean new index on April 18 2024
 ```{r}
-master_article_index_4_18 <- read_csv("/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/extracted_database_index_april_16.csv") %>% 
+master_article_index_4_18 <- read_csv("../data/extracted_database_index_april_16.csv") %>% 
   clean_names()
 
-# extracted %>% 
-#   count(newspaper_state)
+master_article_index_4_18 %>% 
+  count(newspaper_state)
 
 ```
 
