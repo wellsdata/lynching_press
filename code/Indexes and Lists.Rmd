@@ -28,39 +28,64 @@ library(readtext)
 
 ```
 #Data Cleaning and Compiling
-April 18 data cleaning and compiling
+--master_article_index_4_20.csv
+April 20 data cleaning and compiling
 master_article_index_4_18 has 12,579 articles
-#TODO 
-#--have not added the Black press articles to it yet
 --add 714 articles from proquest and howard university
-#TODO--331 of the LOC articles are from the black press
-#TODO--total 1,045 articles from the black press
+--1089 LOC articles are from the black press
+--Total now is 13,311 articles
+
+
+
+
 ```{r}
-master_article_index_4_18 <- read_csv("../data/master_article_index_4_18.csv") %>% 
-  clean_names() %>% 
-  mutate(date = as_date(paste(year,month,day, sep ="/"))) %>% 
-   mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
+#13,311 variables
+master_article_index_4_20 <- read.csv("../data/master_article_index_4_20.csv")  
 ```
 
-
-
+# Counting the years
 ```{r}
-#Add 1803 black press articles ( 714 bp articles + 1,089 LOC articles)
-blackindex_master <- read.csv("../data/blackindex_master.csv")
+years_4_20 <- master_article_index_4_20 %>% 
+  count(year) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  mutate(rank_new = dense_rank(desc(pct_whole)))
 
-#13,311 articles
-master_article_index_4_20 <- master_article_index_4_18 %>% 
-  full_join(blackindex_master, by=c("file_id2"="file_name", "newspaper_name", "newspaper_state", "date", "year", "url", "sn", "file_id", "article_id", "page", "edition", "month", "day", "mod_id"))
+years_10_19 <- old_master_article_index_10.19 %>% 
+  count(year) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  rename(pct_whole_old = pct_whole, count_old = count) %>%   mutate(rank_old = dense_rank(desc(pct_whole_old)))
 
-write.csv(master_article_index_4_20, "../data/master_article_index_4_20.csv")
+#join and compare dfs
+
+
+year_compare <- years_4_20 %>% 
+  inner_join(years_10_19, by="year") %>% 
+  mutate(diff = (count-count_old)) %>% 
+  mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
+  mutate(pct_chg = round(pct_chg,2))
+         
+#NY, MA, no difference; PA, 1; DE, 6; ME, 7; SC, 8
+#Biggest changes were IN, AZ, IA, CO, ID, CT, AL, A, HI, SC, AK
 
 ```
 
-
+## fact checking years new vs old
 ```{r}
-  
-  
-totals_4_18 <- master_article_index_4_18 %>% 
+year_compare %>% 
+  filter(count_old > count)
+
+
+```
+
+#---------------------------------------------------------
+
+# Counting the states
+```{r}
+totals_4_18 <- master_article_index_4_20 %>% 
   count(newspaper_state) %>% 
   rename(count = n) %>% 
   mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
@@ -96,24 +121,34 @@ totals_10_19 <- old_master_article_index_10.19 %>%
 
 ```
 
-#join and compare dfs
+## join and compare dfs
+
 
 ```{r}
 compare <- totals_4_18 %>% 
-  inner_join(totals_10_19, by="newspaper_state")
+  inner_join(totals_10_19, by="newspaper_state") %>% 
+  mutate(diff = (count-count_old)) %>% 
+  mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
+  mutate(pct_chg = round(pct_chg,2))
+         
+#NY, MA, no difference; PA, 1; DE, 6; ME, 7; SC, 8
+#Biggest changes were IN, AZ, IA, CO, ID, CT, AL, A, HI, SC, AK
 
 ```
-
+### fact checking to see how the new db compares to the previous
 ```{r}
-# There are significant problems with the latest data
-# First, there are major discrepancies with the states that were extracted.
-# --Georgia, a critical state in our study, has 91 FEWER entries in the latest data
-# --Pennsylvania has 215 fewer entries
-# 
-# The difference could be the Black press entries which weren't added.
 compare %>% 
   filter(count_old > count)
 
+```
+
+### count of new pre-civil war stories
+
+```{r}
+#304 new pre-civil war articles extracted.
+year_compare %>% 
+filter(year < "1862") %>% 
+summarize(sum(diff))
 
 ```
 
@@ -162,7 +197,51 @@ tolnay_beck <- janitor::clean_names(tolnay_beck)
 ```
 
 
-# Main index of all extracted articles
+# Text data
+
+```{r}
+
+
+#152766 rows of text data for tokenization (6448 predominantly white press articles)
+articles_oct_19 <- read.csv("../data/articles_oct_19.csv")
+#Consists of this folder
+lynch1 <- readtext("~/Code/hcij_lynching_phase_two/articles_10_19")
+
+#76020 rows of BP text data for tokenization 
+bp_text <- read.csv("../data/black_press_article_text_oct_19.csv")
+#from this folder
+bp_lynch <- readtext("~/Code/hcij_lynching_phase_two/black_press_all")
+
+#text for just the 714 bp articles
+onlybptext <- read.csv("../data/only_bp_text.csv")
+
+```
+
+
+#------------------------------------------------------
+#------------------------------------------------------
+
+# Notes on cleaning of the 4_18_2024 new master index
+###Main index of all extracted articles
+
+
+
+```{r}
+master_article_index_4_18 <- read_csv("../data/master_article_index_4_18.csv") %>% 
+  clean_names() %>% 
+  mutate(date = as_date(paste(year,month,day, sep ="/"))) %>% 
+   mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
+
+#Add 1803 black press articles ( 714 bp articles + 1,089 LOC articles)
+blackindex_master <- read.csv("../data/blackindex_master.csv")
+
+#13,311 articles
+master_article_index_4_20 <- master_article_index_4_18 %>% 
+  full_join(blackindex_master, by=c("file_id2"="file_name", "newspaper_name", "newspaper_state", "date", "year", "url", "sn", "file_id", "article_id", "page", "edition", "month", "day", "mod_id"))
+
+write.csv(master_article_index_4_20, "../data/master_article_index_4_20.csv")
+
+```
 
 ```{r}
 #12579 articles from LOC only. April 18 2024
@@ -191,7 +270,7 @@ write.csv(master_article_index_4_18, "../data/master_article_index_4_18.csv")
 
 ```
 
-
+### Oct 19 index
 ```{r}
 
 #7162 articles with the fixed URL. Includes Black Press
@@ -202,25 +281,6 @@ blackindex_master <- read.csv("../data/blackindex_master.csv")
 
 ```
 
-# Text data
-
-```{r}
-
-
-#152766 rows of text data for tokenization (6448 predominantly white press articles)
-articles_oct_19 <- read.csv("../data/articles_oct_19.csv")
-#Consists of this folder
-lynch1 <- readtext("~/Code/hcij_lynching_phase_two/articles_10_19")
-
-#76020 rows of BP text data for tokenization 
-bp_text <- read.csv("../data/black_press_article_text_oct_19.csv")
-#from this folder
-bp_lynch <- readtext("~/Code/hcij_lynching_phase_two/black_press_all")
-
-#text for just the 714 bp articles
-onlybptext <- read.csv("../data/only_bp_text.csv")
-
-```
 
 # Geocoded articles
 #Analysis
@@ -235,6 +295,5 @@ lynch_geocoded_10.8 <- read.csv("../data/lynch_geocoded_10.8.csv")
 ```{r}
 ga_lynchings <- tolnay_beck %>% 
   filter()
-
-
 ```
+
