@@ -27,16 +27,13 @@ library(lubridate)
 library(readtext)
 
 ```
-#Data Cleaning and Compiling
---master_article_index_4_20.csv
+
+# master_article_index_4_20.csv
 April 20 data cleaning and compiling
 master_article_index_4_18 has 12,579 articles
 --add 714 articles from proquest and howard university
 --1089 LOC articles are from the black press
 --Total now is 13,311 articles
-
-
-
 
 ```{r}
 #13,311 variables
