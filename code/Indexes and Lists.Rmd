@@ -40,6 +40,43 @@ master_article_index_4_18 has 12,579 articles
 master_article_index_4_20 <- read.csv("../data/master_article_index_4_20.csv")  
 ```
 
+##Fix URL
+```{r}
+#april 23 2024
+#fix date field
+
+master_article_index_4_20$date2 <- as.character(master_article_index_4_20$date)
+master_article_index_4_20$date2 <- gsub("-", "/", master_article_index_4_20$date2)
+
+#strip url down to sn
+
+master_article_index_4_20$url_fixed <- sub("sn\\d+/\\K.*", "", master_article_index_4_20$url2, perl = TRUE)
+
+
+# master_article_index_4_20$url_fixed <- sub("/$", "", master_article_index_4_20$url_fixed)
+
+
+#paste it back
+master_article_index_4_20 <- master_article_index_4_20 %>% 
+  mutate(url_final = paste(url_fixed, date2, edition, page, "0?user_id=6", sep="/")) 
+
+#kill crap
+master_article_index_4_20 <- subset(master_article_index_4_20, select = -c(X, x1, x, url2, url_fixed, abstract, store_id, pages))
+
+
+master_article_index_4_20 <- master_article_index_4_20 %>% 
+  rename(url_backup = url, url = url_final) 
+
+#april 23 2024
+write_csv(master_article_index_4_20, "../data/master_article_index_4_20.csv")
+
+
+
+```
+
+
+
+
 # Counting the years
 ```{r}
 years_4_20 <- master_article_index_4_20 %>% 

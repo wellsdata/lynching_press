@@ -19,6 +19,64 @@ library(googlesheets4)
 library(geosphere)
 ```
 
+Fixing URL on precivil war index
+```{r}
+
+library(googlesheets4)
+
+#Importing 991 precivil war articles from Google Sheet
+
+# Provide your Google Sheets URL
+google_sheets_url <- "https://docs.google.com/spreadsheets/d/1CCUgAAHdaYbd0dHOvJUqfCJsZk29_zYgJd3zGVwY53I/edit?usp=sharing"
+
+googlesheets4::gs4_deauth()
+
+precivil <- read_sheet(google_sheets_url)
+
+
+```
+
+##Fix URL
+```{r}
+#april 23 2024
+#fix date field
+
+precivil <- precivil %>% 
+  mutate(date2 = as_date(date))
+
+precivil$date <- as.character(precivil$date2)
+precivil$date <- gsub("-", "/", precivil$date)
+
+#strip url down to sn
+
+precivil$url <- sub("sn\\d+/\\K.*", "", precivil$url_fixed_april_2024, perl = TRUE)
+
+
+precivil$url <- sub("/$", "", precivil$url)
+
+
+#paste it back
+precivil <- precivil %>% 
+  mutate(url2 = paste(url, date, edition.x, page, "0?user_id=6", sep="/")) 
+
+#kill crap
+precivil <- subset(precivil, select = -c(url_fixed_april_2024, file_id.y, newspaper_name.y, file_id.x, url))
+
+
+precivil <- precivil %>% 
+  rename(edition = edition.x, newspaper_name = newspaper_name.x,  newspaper_city = newspaper_city.y, url_final = url2) 
+
+write_csv(precivil, "../data/precivil_4_23.csv")
+
+
+
+```
+
+
+
+
+
+
 # April 2024 index filtered pre-Civil War
 
 ```{r}
