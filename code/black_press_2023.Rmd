@@ -29,6 +29,37 @@ black_papers <- black_papers %>%
 
 
 ```
+
+# Black Press index
+```{r}
+# 1650 from the black press
+# from master_article_index_6_17 has 11,396 articles
+# June 17 data cleaning and compiling
+
+blackindex_master <- read.csv("../data/master_article_index_june_18_2024.csv") %>% 
+  filter(black_press =="Y")
+
+write.csv(blackindex_master, "../data/blackindex_master_june_18_2024.csv")
+
+```
+
+
+# Black Press articles for tokenization
+```{r}
+
+black_articles_text_june_18_2024 <- read.csv("../data/extracted_text_june_18_2024.csv")%>% 
+  filter(black_press =="Y")
+
+
+```
+
+
+
+#-----------------------------------------------------------------------------
+#Notes from earlier work
+#-----------------------------------------------------------------------------
+
+
 How many Black papers in the 59,967 articles
 Index creation of black press from LOC index
 ### Create flag for Black papers in index

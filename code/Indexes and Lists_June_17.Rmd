@@ -28,21 +28,71 @@ library(readtext)
 
 ```
 
-#master_article_index_6_17
+#master_article_index_6_18
 June 17 data cleaning and compiling
 master_article_index_6_17 has 11,396 articles
---add 714 articles from proquest and howard university
---938 LOC articles are from the black press
---Total now is 11,396 articles
+--1650 from the black press
 
-
-##Need to create: New folder: black_press_all = xxx1066 black press articles
 
 ```{r}
 #11,396 articles, includes all bp articles
 
 master_article_index_june_18_2024 <- read.csv("../data/master_article_index_june_18_2024.csv")
 ```
+
+
+```{r}
+#black press all: 1650 articles
+
+black_press_master_june_18_2024 <- master_article_index_june_18_2024 %>% 
+  filter(black_press =="Y")
+
+
+black_press_master_june_18_2024 %>% 
+  count(newspaper_name) %>% 
+  arrange(desc(n))
+
+```
+
+# Black press index from Chronicling America
+```{r}
+#243 papers from the 59,967 paper search
+black_papers <- read_csv("../data/black_papers.csv") %>% 
+  rename(newspaper_name = Title) %>% 
+  as.data.frame()
+
+black_papers <- black_papers %>% 
+  mutate(black = "Y")
+
+
+
+```
+
+# Black Press index
+```{r}
+# 1650 from the black press
+# from master_article_index_6_17 has 11,396 articles
+# June 17 data cleaning and compiling
+
+blackindex_master <- read.csv("../data/master_article_index_june_18_2024.csv") %>% 
+  filter(black_press =="Y")
+
+write.csv(blackindex_master, "../data/blackindex_master_june_18_2024.csv")
+
+```
+
+
+# Black Press articles for tokenization
+```{r}
+
+black_articles_text_june_18_2024 <- read.csv("../data/extracted_text_june_18_2024.csv")%>% 
+  filter(black_press =="Y")
+
+write.csv(black_articles_text_june_18_2024, "../data/black_articles_text_june_18_2024.csv")
+```
+
+
+
 
 # Counting the years
 ```{r}
@@ -284,7 +334,22 @@ test1 <- test %>%
 master_index_june_18_2024 <- test1 %>% 
   select( index,  file_id, newspaper_name,  date, year, month,  day, url,  article_id,sn, newspaper_city,  newspaper_state,  black_press,  pages, page,edition,mod_id, seq,   article_title, collection,authors,  document_type,issn,find_a_copy,  start_page,  filepath, file_id_old, file_id2_old, url_backup)
 
-write.csv(master_index_june_18_2024, "../data/master_article_index_june_18_2024.csv")
+#fixing pages
+
+master_article_index_6_17 <- master_article_index_6_17 %>%
+  mutate(page = str_replace(page, "seq-", "")) %>% 
+  mutate(page = coalesce(page, pages)) %>% 
+  mutate(page = str_replace(page, "A", "")) %>% 
+  mutate(start_page = str_replace(start_page, "A", "")) %>% 
+  mutate(page2 = coalesce(page, start_page)) %>% 
+  rename(page_old = page, page = page2) %>% 
+    subset(select = -c(pages, X, seq, start_page, page_old)) 
+
+master_article_index_6_17 %>% 
+  count(page) %>% 
+  arrange(desc(n))
+
+write.csv(master_article_index_6_17, "../data/master_article_index_june_18_2024.csv")
 
 ```
 
@@ -328,72 +393,6 @@ write_csv(extracted_article_index_6_16, "../data/extracted_article_index_6_16.cs
 
 
 ```
-
-
-
-#------------------------------------------------------
-#------------------------------------------------------
-
-# Notes on cleaning of the 4_18_2024 new master index
-###Main index of all extracted articles
-
-
-
-```{r}
-master_article_index_4_18 <- read_csv("../data/master_article_index_4_18.csv") %>% 
-  clean_names() %>% 
-  mutate(date = as_date(paste(year,month,day, sep ="/"))) %>% 
-   mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
-
-#Add 1803 black press articles ( 714 bp articles + 1,089 LOC articles)
-blackindex_master <- read.csv("../data/blackindex_master.csv")
-
-#13,311 articles
-master_article_index_4_20 <- master_article_index_4_18 %>% 
-  full_join(blackindex_master, by=c("file_id2"="file_name", "newspaper_name", "newspaper_state", "date", "year", "url", "sn", "file_id", "article_id", "page", "edition", "month", "day", "mod_id"))
-
-write.csv(master_article_index_4_20, "../data/master_article_index_4_20.csv")
-
-```
-
-```{r}
-#12579 articles from LOC only. April 18 2024
-master_article_index_4_18 <- read.csv("../data/extracted_database_index_april_16.csv") %>% 
-  clean_names()
-
-
-master_article_index_4_18$url_fixed <- sub("sn\\d+/\\K.*", "", master_article_index_4_18$url, perl = TRUE)
-master_article_index_4_18$url_fixed  <- sub("/$", "", master_article_index_4_18$url_fixed)
-
-#date fixed for url
-master_article_index_4_18$date2 <- as.character(master_article_index_4_18$date)
-master_article_index_4_18$date2 <- gsub("-", "/", master_article_index_4_18$date2)
-
-
-#create sequence column
-master_article_index_4_18$seq <- sub(".*/(seq-\\d+).*", "\\1", master_article_index_4_18$url)
-
-master_article_index_4_18 <- master_article_index_4_18 %>% 
-  mutate(url2 = paste(url_fixed, year, month, day, edition, seq, "0?user_id=6", sep="/"))
-
-
-write.csv(master_article_index_4_18, "../data/master_article_index_4_18.csv") 
-
-#next: compare the dates to the first index
-
-```
-
-### Oct 19 index
-```{r}
-
-#7162 articles with the fixed URL. Includes Black Press
-master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
-
-#1045 black press articles. join 714 articles + 358 LOC articles
-blackindex_master <- read.csv("../data/blackindex_master.csv")
-
-```
-
 
 # Geocoded articles
 #Analysis
