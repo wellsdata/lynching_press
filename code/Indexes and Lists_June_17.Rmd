@@ -41,17 +41,12 @@ master_article_index_6_17 has 11,396 articles
 ```{r}
 #11,396 articles, includes all bp articles
 
-master_article_index_6_17 <- read.csv("../data/master_article_index_6_17.csv")
-
-
-
+master_article_index_june_18_2024 <- read.csv("../data/master_article_index_june_18_2024.csv")
 ```
-
-
 
 # Counting the years
 ```{r}
-years_6_17 <- master_article_index_6_17 %>% 
+years_6_18 <- master_index_june_18_2024 %>% 
   count(year) %>% 
   rename(count = n) %>% 
   mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
@@ -60,7 +55,7 @@ years_6_17 <- master_article_index_6_17 %>%
 
 #master_article_index_10_19
 
-old_master_article_index_10.19 <- read.csv("../data/master_article_index_10.19.csv")
+old_master_article_index_10.19 <- read.csv("../data/old_article_indexes_lists/master_article_index_10.19.csv")
 years_10_19 <- old_master_article_index_10.19 %>% 
   count(year) %>% 
   rename(count = n) %>% 
@@ -73,7 +68,7 @@ years_10_19 <- old_master_article_index_10.19 %>%
 
 
 year_compare <- years_10_19 %>% 
-  inner_join(years_6_17, by="year") %>% 
+  inner_join(years_6_18, by="year") %>% 
   mutate(diff = (count-count_old)) %>% 
   mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
   mutate(pct_chg = round(pct_chg,2))
@@ -95,7 +90,7 @@ year_compare %>%
 
 # Counting the states
 ```{r}
-totals_6_17 <- master_article_index_6_17 %>% 
+totals_6_18 <- master_index_june_18_2024 %>% 
   count(newspaper_state) %>% 
   rename(count = n) %>% 
   mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
@@ -117,15 +112,15 @@ totals_10_19 <- old_master_article_index_10.19 %>%
 
 
 ```{r}
-compare <- totals_6_17 %>% 
+compare <- totals_6_18 %>% 
   inner_join(totals_10_19, by="newspaper_state") %>% 
   mutate(diff = (count-count_old)) %>% 
   mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
   mutate(pct_chg = round(pct_chg,2))
          
 
-#Biggest changes were IN, AZ, IA, CO, ID, AL, CT, CA, HI
-#No difference; PA, WV, WY, NY, DE, SC, MA, 1; DE, 6; ME, 7; SC, 8
+#Biggest changes were AZ, IN, IA, CO, ID, AL, CT, CA, HI
+#No difference; PA, WV, WY, NY, DE, SC, MA
 ```
 
 
@@ -214,6 +209,85 @@ onlybptext <- read.csv("../data/only_bp_text.csv")
 #---------------------------------------------------------
 #Notes - Cleaning the extracted article index June 17 2024
 #---------------------------------------------------------
+
+### Index cleaning - June 18 2024
+```{r}
+master_article_index_6_17 <- master_article_index_6_17 %>% 
+  mutate(file_id_all = paste(file_id2, file_name.y)) %>% 
+  mutate(file_id_all = str_replace(file_id_all, "NA", "")) %>% 
+  subset(select = -c(file_name.x, X, file_name.y, idcol,index, abstract, store_id))
+
+
+master_article_index_6_17 <- master_article_index_6_17 %>% 
+  rename(index = X.1, file_id_old = file_id, month = month.x, file_id = file_id_all, file_id2_old = file_id2)
+
+master_article_index_6_17 <- master_article_index_6_17 %>%
+  select( index,  file_id, newspaper_name,  date, date2,  year, month,  day, url,  article_id,sn, newspaper_city,  newspaper_state,  black_press,  black,  pages, page,edition,mod_id, seq,   article_title, collection,authors,  document_type,issn,find_a_copy,  start_page,  filepath, file_id_old, file_id2_old, url_backup )
+
+master_article_index_6_17 <- master_article_index_6_17 %>%
+  subset(select = -c(date)) %>% 
+  rename(date = date2)
+
+write.csv(master_article_index_6_17, "../data/master_article_index_6_17.csv")
+
+#replace missing newspaper names
+newspaper_list <- read.csv("../data/newspaper_list.csv")
+
+newslist1 <- newspaper_list %>% 
+  select(state, newspaper, lccn)
+
+master_article_index_XX_6_17 <- master_article_index_6_17 %>% 
+  left_join(newslist1, by=c("sn"="lccn"))
+
+#clean newspaper name, extract city and state
+test <- master_article_index_XX_6_17 %>% 
+  mutate(newspaper = str_replace(newspaper, "\\[volume\\]", "")) %>% 
+  mutate(newspaper = gsub("\\d", "", newspaper)) %>% 
+   mutate(city_state = str_extract(newspaper, "\\([^\\)]+\\)"),
+         city_state = str_replace_all(city_state, "\\(|\\)", ""),
+         city = str_split_fixed(city_state, ", ", 2)[, 1],
+         state = str_split_fixed(city_state, ", ", 2)[, 2]) %>%
+  select(-city_state)
+
+
+#replace blank city and new entries
+test <- test %>% 
+  mutate(newspaper_city = coalesce(newspaper_city, city)) %>% 
+  mutate(newspaper_city = str_replace(newspaper_city, "[[:punct:]]", ""))
+
+#clean newspaper name
+library(tidyr)
+test <- separate(data = test, col = newspaper, into = c("newspaper1", "crap"), sep = "\\(", extra = "merge", fill = "right")
+
+test <- test %>% 
+  mutate(newspaper_name2 = coalesce(newspaper1, newspaper_name)) %>% 
+  mutate(newspaper_name2 = str_replace(newspaper_name2, "[[:punct:]]", "")) 
+
+test <- test %>% 
+    mutate(newspaper_name2 = gsub("\\d", "", newspaper_name2)) 
+
+
+test$newspaper_name2 <- str_replace_all(test$newspaper_name2, "[[:punct:]]", "")
+
+test <- test %>% 
+  subset(select = -c(crap, newspaper_name, newspaper1, city)) %>% 
+  rename(newspaper_name = newspaper_name2) %>% 
+  mutate(black_press = coalesce(black, black_press))
+
+test <- test %>% 
+  subset(select = -c(black)) 
+
+test1 <- test %>% 
+  distinct(file_id, .keep_all = TRUE)
+
+
+master_index_june_18_2024 <- test1 %>% 
+  select( index,  file_id, newspaper_name,  date, year, month,  day, url,  article_id,sn, newspaper_city,  newspaper_state,  black_press,  pages, page,edition,mod_id, seq,   article_title, collection,authors,  document_type,issn,find_a_copy,  start_page,  filepath, file_id_old, file_id2_old, url_backup)
+
+write.csv(master_index_june_18_2024, "../data/master_article_index_june_18_2024.csv")
+
+```
+
 ##Fix URL
 ```{r}
 #create date field
