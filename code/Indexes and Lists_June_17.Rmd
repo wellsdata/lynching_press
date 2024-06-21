@@ -1,6 +1,6 @@
 ---
 title: "Indexes and Lists"
-author: "Wells"
+author: "(redacted for peer review)"
 date: "2024-06-17"
 output: html_document
 ---
@@ -35,9 +35,14 @@ master_article_index_6_17 has 11,396 articles
 
 
 ```{r}
-#11,396 articles, includes all bp articles
+#Index of 11,396 articles of text extracted from 60,000 lynchin articles
 
-master_article_index_june_18_2024 <- read.csv("../data/master_article_index_june_18_2024.csv")
+master_article_index_june_18_2024 <- read_csv("https://osf.io/download/fwzny/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
+  as.data.frame()
+
+#60,042 Library of Congress articles on lynching captured.
+main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
 ```
 
 

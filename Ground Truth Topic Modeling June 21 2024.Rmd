@@ -1,0 +1,1173 @@
+---
+title: "Ground Truth of Topic Modeling"
+author: "Rob Wells"
+date: '2023-5-25'
+output: html_document
+---
+
+# Mainstream Papers Topic Modeling
+
+This notebook will import 1,387 text files and related metadata files and execute basic topic modeling
+
+with LADAL Method
+I've adapted this LADAL tutorial for the lynching research: https://ladal.edu.au/topicmodels.html
+
+Load up the packages if you haven't already....
+
+```{r}
+# install.packages("here")
+# install.packages("tidytext")
+# install.packages("quanteda")
+# # install packages
+# install.packages("tm")
+# install.packages("topicmodels")
+# install.packages("reshape2")
+# #install.packages("ggplot2")
+# install.packages("wordcloud")
+# install.packages("pals")
+# install.packages("SnowballC")
+# install.packages("lda")
+# install.packages("ldatuning")
+# install.packages("kableExtra")
+# install.packages("DT")
+# install.packages("flextable")
+# # install klippy for copy-to-clipboard button in code chunks
+# install.packages("remotes")
+# remotes::install_github("rlesur/klippy")
+
+```
+
+
+```{r include=FALSE}
+# set options
+options(stringsAsFactors = F)         # no automatic data transformation
+options("scipen" = 100, "digits" = 4) # suppress math annotation
+# load packages
+here::here()
+library(tidyverse)
+library(tidytext)
+library(rio)
+library(readtext)
+#topic modeling
+library(quanteda)
+library(tm)
+library(topicmodels)
+library(lda)
+library(ldatuning)
+# from tutorial packages
+library(DT)
+library(knitr) 
+library(kableExtra) 
+library(reshape2)
+library(ggplot2)
+library(wordcloud)
+library(pals)
+library(SnowballC)
+library(flextable)
+
+# activate klippy for copy-to-clipboard button
+klippy::klippy()
+```
+
+
+### Import Data
+```{r include=FALSE}
+#import df created from Sean's compiler of raw text sequence - source code in appendix of this document
+lynch <- read_csv("../data/articles_march8.csv")
+
+#index of 1 pct sample which has been checked by a coder and represents all valid entries
+jackindex <- read_csv("../data/jackindex_march8.csv")
+
+
+index <- read_csv("../data/index_feb6.csv") %>% 
+  as.data.frame()
+
+index <- janitor::clean_names(index)
+
+#lynch1 <- readtext(here::here("~/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08"))
+lynch1 <- readtext("~/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08")
+
+
+lynch1 <- lynch1 %>% 
+  inner_join(jackindex, by=c("doc_id"="filename"))
+```
+
+# Filter Pre- 1900
+
+```{r}
+# lynch1 <- lynch1 %>% 
+#    filter(year < 1900)
+```
+
+
+#### Process into corpus object
+```{r}
+
+textdata <- lynch1 %>%
+  as.data.frame()
+
+# load stopwords
+english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# create corpus object
+corpus <- Corpus(DataframeSource(textdata))
+# Preprocessing chain
+processedCorpus <- tm_map(corpus, content_transformer(tolower))
+processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
+processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
+processedCorpus <- tm_map(processedCorpus, removeNumbers)
+processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
+processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+```
+
+```{r tm3a}
+#DTM: rows correspond to the documents in the corpus. Columns correspond to the terms in the documents. Cells correspond to the weights of the terms. (Girder)
+# compute document term matrix with terms >= minimumFrequency
+minimumFrequency <- 5
+DTM <- DocumentTermMatrix(processedCorpus, control = list(bounds = list(global = c(minimumFrequency, Inf))))
+# have a look at the number of documents and terms in the matrix
+dim(DTM)
+# due to vocabulary pruning, we have empty rows in our DTM
+# LDA does not like this. So we remove those docs from the
+# DTM and the metadata
+sel_idx <- slam::row_sums(DTM) > 0
+DTM <- DTM[sel_idx, ]
+textdata <- textdata[sel_idx, ]
+#5 term minimum[1] 1387 3019
+``` 
+
+
+## Topic proportions over time{-}
+
+We examine topics in the data over time by aggregating mean topic proportions per decade. These aggregated topic proportions can then be visualized, e.g. as a bar plot. 
+
+
+```{r}
+# append decade information for aggregation
+textdata$decade <- paste0(substr(textdata$year, 0, 3), "0")
+```
+
+Articles per decade
+
+```{r}
+#install.packages("formattable")
+articles_decades <- textdata %>% 
+  count(decade) %>% 
+  mutate(pct_total= (n/sum(n))) %>% 
+  mutate(pct_total= formattable::percent(pct_total)) %>% 
+  # mutate(pct_total = round(pct_total, 1)) %>% 
+  arrange(desc(decade))
+
+library(kableExtra)
+articles_decades %>%
+  kbl(caption = "LOC Lynching Articles by Decade (n=1,387, 4/16/2023)", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em") %>% 
+  column_spec(3, width = "5em", background = "yellow") 
+
+
+
+#Fact check 1387 articles tabulated
+# textdata %>%
+#   count(decade) %>%
+#   summarize(sum(n))
+```
+
+
+```{r tm12}
+# number of topics
+# K <- 20
+K <- 6
+# set random number generator seed
+set.seed(9161)
+#Latent Dirichlet Allocation, LDA
+topicModel2 <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+tmResult <- posterior(topicModel2)
+theta <- tmResult$topics
+beta <- tmResult$terms
+topicNames <- apply(terms(topicModel2, 10), 2, paste, collapse = " ")  # reset topicnames
+```
+## Extract specific articles based on TM
+1) theta has the articles and the percentage of likely topics, 1-6
+2) topicNames has the corresponding names of the topics
+3) filter theta for topic 1, highest percentage, and then look at the topics.
+4) Dump the highest pct articles into a folder for researchers to examine
+5) Rinse and repeat....
+
+# Here are the topics:
+Topic 1: "lynch_mob" - "law lynch mob crime peopl state man murder men citizen" 
+Topic 2: "lynch_mob2" - "mob crowd men jail man door street made shot rope" 
+Topic 3: "legal_issues" - "lynch mob state court counti prison governor juri sheriff trial"
+Topic 4: "cause_of_lynching" - "negro lynch mob white murder jail kill hang assault shot"
+Topic 5: "misc_lynching" - "negro lynch white worker nation unit state south organ american"
+Topic 6: "female_victim" - "man murder year wife home girl time day found night" 
+ 
+
+#For lynch mob
+```{r}
+#for topic 1, lynch mob
+theta2 <- as.data.frame(theta)
+
+lynch_mob_topic <- theta2 %>% 
+  #renaming for a general topic
+  rename(lynch_mob = '1') %>% 
+  top_n(20, lynch_mob) %>%
+  arrange(desc(lynch_mob)) %>% 
+  select(lynch_mob)
+
+# Apply rownames_to_column
+lynch_mob_topic <- tibble::rownames_to_column(lynch_mob_topic, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/topic_lynch_law" 
+
+
+df <- lynch_mob_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+ 
+#For female_victim
+
+```{r}
+#for topic 6, female_victim
+
+female_victim <- theta2 %>% 
+  #renaming for a general topic
+  rename(female_victim = '6') %>% 
+  top_n(20, female_victim) %>%
+  arrange(desc(female_victim)) %>% 
+  select(female_victim)
+
+# Apply rownames_to_column
+female_victim <- tibble::rownames_to_column(female_victim, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/topic_female_victim" 
+
+
+df <- female_victim$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+# For lynch_mob2
+
+```{r}
+#for topic 2, lynch_mob2
+
+lynch_mob2 <- theta2 %>% 
+  #renaming for a general topic
+  rename(legal_issues = '2') %>% 
+  top_n(20, lynch_mob2) %>%
+  arrange(desc(lynch_mob2)) %>% 
+  select(lynch_mob2)
+
+# Apply rownames_to_column
+lynch_mob2 <- tibble::rownames_to_column(lynch_mob2, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/topic_lynch_mob2" 
+
+
+df <- lynch_mob2$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+#For legal_issues, topic 3
+
+```{r}
+
+legal_issues <- theta2 %>% 
+  #renaming for a general topic
+  rename(legal_issues = '3') %>% 
+  top_n(20, legal_issues) %>%
+  arrange(desc(legal_issues)) %>% 
+  select(legal_issues)
+
+# Apply rownames_to_column
+legal_issues<- tibble::rownames_to_column(legal_issues, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/topic_legal_issues" 
+
+
+df <- legal_issues$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+#For cause_of_lynching, topic 4
+
+```{r}
+
+cause_of_lynching <- theta2 %>% 
+  #renaming for a general topic
+  rename(cause_of_lynching = '4') %>% 
+  top_n(20, cause_of_lynching) %>%
+  arrange(desc(cause_of_lynching)) %>% 
+  select(cause_of_lynching)
+
+# Apply rownames_to_column
+cause_of_lynching<- tibble::rownames_to_column(cause_of_lynching, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/topic_cause_of_lynching" 
+
+
+df <- cause_of_lynching$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+#For misc_lynching topic 5
+
+```{r}
+
+misc_lynching <- theta2 %>% 
+  #renaming for a general topic
+  rename(misc_lynching = '5') %>% 
+  top_n(20, misc_lynching) %>%
+  arrange(desc(misc_lynching)) %>% 
+  select(misc_lynching)
+
+# Apply rownames_to_column
+misc_lynching<- tibble::rownames_to_column(misc_lynching, "story_id") 
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/topic_misc_lynching" 
+
+
+df <- misc_lynching$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+# Mean topic proportions per decade
+```{r}
+# get mean topic proportions per decade
+topic_proportion_per_decade <- aggregate(theta, by = list(decade = textdata$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade)[2:(K+1)] <- topicNames
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_decade, id.vars = "decade")
+
+# #filter out 1960 - one article
+vizDataFrame <- vizDataFrame %>% 
+   filter(!decade==1960)
+```
+
+```{r}
+#add categories
+vizDataFrame <- vizDataFrame %>% 
+  mutate(category = case_when(
+    str_detect(variable, "law lynch mob crime peopl state man murder men citizen") ~ "lynch_mob",
+    str_detect(variable, "negro lynch mob white murder jail kill hang assault shot") ~ "cause_of_lynching",
+    str_detect(variable, "lynch mob state court counti prison governor juri sheriff trial") ~ "legal_issues",
+    str_detect(variable, "mob crowd men jail man door street made shot rope") ~ "lynch_mob",
+    str_detect(variable, "man murder year wife home girl time day found night") ~ "female_victim",
+    str_detect(variable, "negro lynch white worker nation unit state south organ american") ~ "misc_lynching",
+  ))
+
+```
+
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame, aes(x=decade, y=value, fill=category)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+   scale_fill_manual(values=c("#9933FF",
+                              "#33FFFF",
+                              "red",
+                              "yellow",
+                              "darkblue"))+
+   #                           "green",
+   #                           "blue"))+ 
+   #                           #"pink",
+   #                           #"gray",
+   #                           #"orange")) +
+  labs(title = "Common Narratives in Lynching News Coverage",
+       subtitle = "5 Probable Topics in 1,387 extracted articles",
+       caption = "Topic Modeling: Aggregate mean topic proportions per decade. Graphic by Rob Wells, 3-14-2023")
+
+
+```
+
+We sort topics according to their probability within the entire collection:
+
+```{r tm14}
+# What are the most probable topics in the entire collection?
+topicProportions <- colSums(theta) / nDocs(DTM)  # mean probabilities over all paragraphs
+#longer topic names for this dataframe
+topicNames <- apply(terms(topicModel2, 10), 2, paste, collapse = " ")  # reset topicnames
+names(topicProportions) <- topicNames     # assign the topic names we created before
+sort(topicProportions, decreasing = TRUE) # show summed proportions in decreased order
+
+x <- topicProportions %>% 
+  as.data.frame()
+
+x <- tibble::rownames_to_column(x, "row_names")
+
+x <- x %>% 
+  rename(proportion = '.')
+
+x <- x %>% 
+  arrange(desc(proportion))
+x
+
+x <- x %>% 
+  mutate(category = case_when(
+    str_detect(proportion, "0.36949") ~ "lynch_mob",
+    str_detect(proportion, "0.14946") ~ "cause_of_lynching",
+    str_detect(proportion, "0.14806") ~ "legal_issues",
+    str_detect(row_names, "mob crowd men jail man door street made shot rope") ~ "lynch_mob",
+    str_detect(proportion, "0.11691") ~ "female_victim",
+    str_detect(proportion, "0.09057") ~ "misc_lynching",
+  ))
+#write.csv(x, "twentytopics_3_15_2023.csv")
+
+```
+
+
+```{r}
+xx <- vizDataFrame %>% 
+  select(variable, value) %>% 
+  group_by(variable) %>% 
+  summarise(sum = sum(value)) %>% 
+  arrange(desc(sum))
+
+```
+
+
+# Counting of Topics and Visualization
+
+## Topic ranking{-}
+
+First, we try to get a more meaningful order of top terms per topic by re-ranking them with a specific score [@Chang2009]. The idea of re-ranking terms is similar to the idea of TF-IDF. The more a term appears in top levels w.r.t. its probability, the less meaningful it is to describe the topic. Hence, the scoring advanced favors terms to describe a topic.
+
+```{r tm13}
+# re-rank top topic terms for topic names
+topicNames <- apply(lda::top.topic.words(beta, 10, by.score = T), 2, paste, collapse = " ")
+```
+We count how often a topic appears as a primary topic within a paragraph This method is also called Rank-1.
+
+```{r tm16}
+countsOfPrimaryTopics <- rep(0, K)
+names(countsOfPrimaryTopics) <- topicNames
+for (i in 1:nDocs(DTM)) {
+  topicsPerDoc <- theta[i, ] # select topic distribution for document i
+  # get first element position from ordered list
+  primaryTopic <- order(topicsPerDoc, decreasing = TRUE)[1] 
+  countsOfPrimaryTopics[primaryTopic] <- countsOfPrimaryTopics[primaryTopic] + 1
+}
+sort(countsOfPrimaryTopics, decreasing = TRUE)
+```
+```{r tm17}
+so <- sort(countsOfPrimaryTopics, decreasing = TRUE)
+paste(so, ":", names(so))
+
+#create df
+x <- unlist(so)  
+dl <- data.frame(ID = rep(names(x), sapply(x, length)),
+                 Obs = unlist(x))
+top_topics <- melt(dl) %>% 
+  select(ID, value)
+
+#write.csv(top_topics, "top_topics_3_8.csv")
+
+```
+```{r}
+# get topic counts per decade
+#topic_count_per_decade <- aggregate(theta, by = list(decade = textdata$decade), sum)
+topic_count_per_decade <- aggregate(theta, by = list(decade = textdata$decade), sum)
+# set topic names to aggregated columns
+colnames(topic_count_per_decade)[2:(K+1)] <- topicNames
+# reshape data frame
+vizDataFrame2 <- melt(topic_count_per_decade, id.vars = "decade")
+
+# #filter out 1960 - one article
+# vizDataFrame2 <- vizDataFrame2 %>% 
+#    filter(!decade==1960)
+```
+
+#fact check
+```{r}
+colSums(topic_count_per_decade[2:7])
+
+# the process of calculating the topics by decade and aggregating them over the entire corpus yields slightly different terms and therefore slightly different results. They are generally similar except the decade aggregations are slightly different and undercounts
+
+#        negro lynch mob white murder jail kill hang assault shot 
+#                                                           512.5 
+# law lynch mob crime peopl state man murder men citizen 
+#                                                           207.3 
+# lynch mob state court counti prison governor juri sheriff trial 
+#                                                           205.4 
+#               mob crowd men jail man door street made shot rope 
+#                                                           174.1 
+#             man murder year wife home girl time day found night 
+#                                                           162.2 
+# negro lynch white worker nation unit state south organ american 
+#                                                           125.6 
+
+# Here are the total counts that are not aggregated by decade, which yield different results but are pretty similar
+
+# [1] "627 : negro lynch mob white jail assault shot kill murder hang"         
+# [2] "221 : law lynch crime punish peopl state case mob justic fact"          
+# [3] "184 : lynch governor court juri counti state prison sheriff trial grand"
+# [4] "139 : crowd door jail men street mob rope shot made open"               
+# [5] "125 : wife girl son hors year father brother home bodi man"             
+# [6] "91 : white negro worker american lynch nation presid unit class south"  
+
+# I think the difference is the summing of the theta probabilities when they are broken out by decades
+#topic_count_per_decade <- aggregate(theta, by = list(decade = textdata$decade), sum)
+
+```
+
+```{r}
+#add categories
+vizDataFrame2 <- vizDataFrame2 %>% 
+  mutate(category = case_when(
+    str_detect(variable, "negro lynch mob white jail assault shot kill murder hang") ~ "lynch_mob",
+    str_detect(variable, "lynch governor court juri counti state prison sheriff trial grand") ~ "state",
+    str_detect(variable, "law lynch crime punish peopl state case mob justic fact") ~ "legal_issues",
+    str_detect(variable, "crowd door jail men street mob rope shot made open") ~ "lynch_mob",
+    str_detect(variable, "wife girl son hors year father brother home bodi man") ~ "victim",
+    str_detect(variable, "white negro worker american lynch nation presid unit class south") ~ "misc_lynching",
+  ))
+
+```
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame2, aes(x=decade, y=value, fill=category)) + 
+  geom_bar(stat = "identity") + ylab("count of topics") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+   scale_fill_manual(values=c("#9933FF",
+                              "#33FFFF",
+                              "red",
+                              "yellow",
+                              "darkblue"))+
+   #                           "green",
+   #                           "blue"))+ 
+   #                           #"pink",
+   #                           #"gray",
+   #                           #"orange")) +
+  labs(title = "Common Narratives in Lynching News Coverage",
+       subtitle = "Counts of Probable Topics in 1,387 extracted articles",
+       caption = "Topic Modeling: Counts of topic proportions per decade. Graphic by Rob Wells, 3-16-2023")
+
+
+```
+
+######### NOTES BELOW ############
+Filter vizDataFrame
+```{r}
+vizDataFrame3 <- vizDataFrame %>% 
+   filter(grepl ("sheriff", variable))
+
+# vizDataFrame1 <- vizDataFrame %>% 
+#   filter(grepl ("sheriff", variable))
+
+```
+
+
+
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame3, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Sheriff Term in Lynching News Coverage",
+       subtitle = "Word to Filter Topic in 1,387 extracted articles",
+       caption = "Aggregate mean topic proportions per decade. Graphic by Rob Wells, 4-3-2023")
+
+
+```
+
+```{r}
+#filter for The act of lynching, represented by:
+  
+
+bfd <- vizDataFrame %>% 
+  filter(category == "lynch_mob") %>% 
+  arrange(decade)
+```
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(bfd, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Mob Narratives In News Coverage",
+       subtitle = "Probable Topics in 1,387 extracted articles",
+       caption = "Aggregate mean topic proportions per decade. Graphic by Rob Wells, 4-3-2023")
+
+
+```
+
+
+```{r}
+#filter for The act of lynching, represented by:
+
+bfd <- vizDataFrame %>% 
+  filter(variable == "shot kill fire wound dead") %>% 
+  arrange(decade)
+```
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(bfd, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF")) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Graphic Violence Narratives In News Coverage",
+       subtitle = "Probable Topics in 1,465 extracted articles",
+       caption = "Aggregate mean topic proportions per decade. Graphic by Rob Wells, 2-22-2023")
+
+
+```
+
+
+
+```{r}
+#filter for Interaction of the mob and law enforcement, represented by:
+
+bfd <- vizDataFrame %>% 
+  filter(variable == "mob jail negro sheriff prison") %>% 
+  arrange(decade)
+```
+
+```{r}
+# plot topic proportions per decade as bar plot
+ggplot(bfd, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF")) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Law Enforcement During Lynching Narratives In News Coverage",
+       subtitle = "Probable Topics in 1,465 extracted articles",
+       caption = "Aggregate mean topic proportions per decade. Graphic by Rob Wells, 2-22-2023")
+
+
+```
+
+
+#For Black Press
+### Import Data
+```{r}
+#import df created from Sean's compiler of raw text sequence 
+black <- read_csv("../data/black_press_3_9_2023.csv")
+
+#index of 790 black press from LOC, proquest and some from Howard
+blackindex_master <- read.csv("../output/blackindex_master.csv")
+
+#index of the 59,967 articles from LOC
+# index <- read_csv("../data/index_jan20.csv") %>% 
+#   as.data.frame()
+
+index <- read_csv("../data/index_feb6.csv") %>% 
+  as.data.frame()
+
+index <- janitor::clean_names(index)
+
+#index of 1 pct sample which has been checked by a coder and represents all valid entries
+jackindex <- read_csv("../data/jackindex_march8.csv")
+
+black1 <- readtext(here::here("~/Code/hcij_lynching_phase_two/black_press"))
+black2 <- readtext(here::here("~/Code/hcij_lynching_phase_two/narratives/data/blackLOC"))
+
+black3 <- rbind(black1, black2)
+
+black3 <- black3 %>% 
+  inner_join(blackindex_master, by=c("doc_id"))
+```
+#### Process into corpus object
+```{r}
+
+blacktextdata <- black3 %>%
+  as.data.frame()
+
+# load stopwords
+english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# create corpus object
+corpus2 <- Corpus(DataframeSource(blacktextdata))
+# Preprocessing chain
+processedCorpus2 <- tm_map(corpus2, content_transformer(tolower))
+processedCorpus2 <- tm_map(processedCorpus2, removeWords, english_stopwords)
+processedCorpus2 <- tm_map(processedCorpus2, removePunctuation, preserve_intra_word_dashes = TRUE)
+processedCorpus2 <- tm_map(processedCorpus2, removeNumbers)
+processedCorpus2 <- tm_map(processedCorpus2, stemDocument, language = "en")
+processedCorpus2 <- tm_map(processedCorpus2, stripWhitespace)
+```
+
+```{r tm3a}
+#DTM: rows correspond to the documents in the corpus. Columns correspond to the terms in the documents. Cells correspond to the weights of the terms. (Girder)
+# compute document term matrix with terms >= minimumFrequency
+minimumFrequency <- 5
+DTM2 <- DocumentTermMatrix(processedCorpus2, control = list(bounds = list(global = c(minimumFrequency, Inf))))
+# have a look at the number of documents and terms in the matrix
+dim(DTM2)
+# due to vocabulary pruning, we have empty rows in our DTM
+# LDA does not like this. So we remove those docs from the
+# DTM and the metadata
+sel_idx <- slam::row_sums(DTM2) > 0
+DTM2 <- DTM2[sel_idx, ]
+blacktextdata <- blacktextdata[sel_idx, ]
+#790 4019
+``` 
+
+
+## Topic proportions over time{-}
+
+We examine topics in the data over time by aggregating mean topic proportions per decade. These aggregated topic proportions can then be visualized, e.g. as a bar plot. 
+
+
+```{r}
+# append decade information for aggregation
+blacktextdata$decade <- paste0(substr(blacktextdata$year, 0, 3), "0")
+```
+
+Articles per decade
+
+```{r}
+#install.packages("formattable")
+black_decades <- blacktextdata %>% 
+  count(decade) %>% 
+  mutate(pct_total= formattable::percent(n/sum(n))) %>% 
+  arrange(desc(decade))
+
+black_decades %>%
+  arrange(decade) %>% 
+  kbl(caption = "Black Press Article Totals", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(3, width = "5em", background = "yellow") 
+#Fact check 790 articles tabulated
+# textdata2 %>%
+#   count(decade) %>%
+#   summarize(sum(n))
+```
+
+
+```{r tm12}
+# number of topics
+# K <- 20
+K <- 6
+# set random number generator seed
+set.seed(9161)
+#Latent Dirichlet Allocation, LDA
+topicModel2 <- LDA(DTM2, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+tmResult2 <- posterior(topicModel2)
+theta2 <- tmResult2$topics
+beta2 <- tmResult2$terms
+topicNames2 <- apply(terms(topicModel2, 10), 2, paste, collapse = " ")  # reset topicnames
+```
+# Mean topic proportions per decade
+```{r}
+# get mean topic proportions per decade
+topic_proportion_per_decade2 <- aggregate(theta2, by = list(decade = textdata2$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade2)[2:(K+1)] <- topicNames2
+# reshape data frame
+vizDataFrame5 <- melt(topic_proportion_per_decade2, id.vars = "decade")
+
+# #filter out 1960 - one article
+# vizDataFrame <- vizDataFrame %>% 
+#    filter(!decade==1960)
+```
+
+```{r}
+#add categories
+vizDataFrame5 <- vizDataFrame5 %>% 
+  mutate(category = case_when(
+    str_detect(variable, "peopl black american press nation time countri race south right") ~ "civil_society",
+    str_detect(variable, "lynch state mrs negro bill presid nation citi church york") ~ "legal_redress",
+    str_detect(variable, "mob white sheriff jail woman man kill men polic shot") ~ "lynch_mob",
+    str_detect(variable, "lynch juri counti investig case feder trial attorney continu grand") ~ "investigate_lynching",
+    str_detect(variable, "negro white man men women south school good race southern") ~ "race",
+    str_detect(variable, "lynch mob state law court crime murder governor citizen year") ~ "legislation",
+  ))
+
+```
+
+## Extract specific articles based on TM
+1) theta has the articles and the percentage of likely topics, 1-6
+2) topicNames has the corresponding names of the topics
+3) filter theta for topic 1, highest percentage, and then look at the topics.
+4) Dump the highest pct articles into a folder for researchers to examine
+5) Rinse and repeat....
+
+# Here are the topics:
+Topic 1: "civil_society" - "peopl black american press nation time countri race south right" 
+Topic 2: "legal_redress" - "lynch state mrs negro bill presid nation citi church york" 
+Topic 3: "lynch_mob" - "mob white sheriff jail woman man kill men polic shot"
+Topic 4: "investigate_lynching" - "lynch juri counti investig case feder trial attorney continu grand"
+Topic 5: "race" - "negro white man men women south school good race southern"
+Topic 6: "legislation" - "lynch mob state law court crime murder governor citizen year" 
+
+#For civil_society
+```{r}
+#for topic 1, civil_society
+theta3 <- as.data.frame(theta2)
+
+civil_society_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(civil_society = '1') %>% 
+  top_n(20, civil_society) %>%
+  arrange(desc(civil_society)) %>% 
+  select(civil_society)
+
+# Apply rownames_to_column
+civil_society_topic <- tibble::rownames_to_column(civil_society_topic, "story_id") 
+
+civil_society_topic$story_id <- str_replace_all(civil_society_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_civil_society" 
+
+
+df <- civil_society_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+#For legal_redress
+```{r}
+#for topic 2, legal_redress
+theta3 <- as.data.frame(theta2)
+
+legal_redress_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(legal_redress = '2') %>% 
+  top_n(20, legal_redress) %>%
+  arrange(desc(legal_redress)) %>% 
+  select(legal_redress)
+
+# Apply rownames_to_column
+legal_redress_topic <- tibble::rownames_to_column(legal_redress_topic, "story_id") 
+
+legal_redress_topic$story_id <- str_replace_all(legal_redress_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_legal_redress" 
+
+
+df <- legal_redress_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+
+#For lynch_mob
+```{r}
+#for topic 3, bp_topic_lynch_mob
+theta3 <- as.data.frame(theta2)
+
+lynch_mob_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(lynch_mob = '3') %>% 
+  top_n(20, lynch_mob) %>%
+  arrange(desc(lynch_mob)) %>% 
+  select(lynch_mob)
+
+# Apply rownames_to_column
+lynch_mob_topic <- tibble::rownames_to_column(lynch_mob_topic, "story_id") 
+
+lynch_mob_topic$story_id <- str_replace_all(lynch_mob_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+lynch_mob_topic$story_id <- str_replace_all(lynch_mob_topic$story_id, pattern=fixed('9833_0.txt.1'), replacement=fixed('9833_0.txt') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_lynch_mob" 
+
+
+df <- lynch_mob_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+#For investigate_lynching
+```{r}
+#for topic 4, bp_topic_legislation
+theta3 <- as.data.frame(theta2)
+
+investigate_lynching_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(investigate_lynching = '4') %>% 
+  top_n(20, investigate_lynching) %>%
+  arrange(desc(investigate_lynching)) %>% 
+  select(investigate_lynching)
+
+# Apply rownames_to_column
+investigate_lynching_topic <- tibble::rownames_to_column(investigate_lynching_topic, "story_id") 
+
+investigate_lynching_topic$story_id <- str_replace_all(investigate_lynching_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+# investigate_lynching_topic$story_id <- str_replace_all(investigate_lynching_topic$story_id, pattern=fixed('9833_0.txt.1'), replacement=fixed('9833_0.txt') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_investigate_lynching" 
+
+
+df <- investigate_lynching_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+
+#For race
+```{r}
+#for topic 5, bp_topic_race
+theta3 <- as.data.frame(theta2)
+
+race_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(race = '5') %>% 
+  top_n(20, race) %>%
+  arrange(desc(race)) %>% 
+  select(race)
+
+# Apply rownames_to_column
+race_topic <- tibble::rownames_to_column(race_topic, "story_id") 
+
+race_topic$story_id <- str_replace_all(race_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+# race_topic$story_id <- str_replace_all(race_topic$story_id, pattern=fixed('9833_0.txt.1'), replacement=fixed('9833_0.txt') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_race" 
+
+
+df <- race_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+#For legislation
+```{r}
+#for topic 6, bp_topic_legislation
+theta3 <- as.data.frame(theta2)
+
+legislation_topic <- theta3 %>% 
+  #renaming for a general topic
+  rename(legislation = '6') %>% 
+  top_n(20, legislation) %>%
+  arrange(desc(legislation)) %>% 
+  select(legislation)
+
+# Apply rownames_to_column
+legislation_topic <- tibble::rownames_to_column(legislation_topic, "story_id") 
+
+legislation_topic$story_id <- str_replace_all(legislation_topic$story_id, pattern=fixed('X'), replacement=fixed('') )
+
+# legislation_topic$story_id <- str_replace_all(legislation_topic$story_id, pattern=fixed('9833_0.txt.1'), replacement=fixed('9833_0.txt') )
+
+
+#list of lynch story ids, but not needed actually. 
+#lynch_stories <- print(lynch_mob_topic$story_id)
+
+```
+###Copy selected files to a new directory
+```{r}
+#This tutorial shows how to copy files from one directory to another
+# https://stackoverflow.com/questions/68995687/r-move-files-to-folder-based-on-list-or-column
+
+inputdir  <- "/Users/robwells/Code/hcij_lynching_phase_two/all_articles_6_26_2023" 
+
+#Create a new folder for the filtered topics
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/output/bp_topic_legislation" 
+
+
+df <- legislation_topic$story_id
+filestocopy <- list.files(inputdir, full.names = TRUE)
+
+filestocopy <- unique(grep(paste(df,collapse="|"), filestocopy, value=TRUE))
+
+sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE))
+```
+
+
+# Citation & Session Info {-}
+
+This code was adapted from the following:
+
+Schweinberger, Martin. `r format(Sys.time(), '%Y')`. *Topic Modeling with R*. Brisbane: The University of Queensland. url: https://slcladal.github.io/topicmodels.html (Version `r format(Sys.time(), '%Y.%m.%d')`).
+
+
+```
+@manual{schweinberger`r format(Sys.time(), '%Y')`topic,
+  author = {Schweinberger, Martin},
+  title = {Topic Modeling with R},
+  note = {https://slcladal.github.io/topicmodels.html},
+  year = {`r format(Sys.time(), '%Y')`},
+  organization = "The University of Queensland, Australia. School of Languages and Cultures},
+  address = {Brisbane},
+  edition = {`r format(Sys.time(), '%Y.%m.%d')`}
+}
+```
+
+[Back to HOME](https://slcladal.github.io/index.html)

@@ -1,6 +1,6 @@
 ---
 title: "Sampling Lynching Coverage"
-author: "Rob Wells"
+author: "(redacted - peer review)"
 date: "2024-6-19"
 output:
   word_document: default
@@ -21,6 +21,10 @@ library(formattable)
 library(kableExtra)
 library(knitr)
 library(here)
+#install.packages('htmlTable')
+library(htmlTable)
+#install.packages("rempsyc")
+library(rempsyc)
 here::here('/Users/robwells/Code/lynching_press')
 ```
 
@@ -29,30 +33,38 @@ Next, we import an index of lynching coverage -- 60,042 pages -- captured by the
 # Import Data
 ```{r}
 
-#60,000 LOC articles captured
-index <- read_csv("../data/main_index_dec_28_2023.csv")
+#60,000 Library of Congress articles on lynching captured.
+index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-#Master index
-index2 <- read_csv("../data/master_article_index_june_18_2024.csv") %>%
+#Index of 11,396 articles of text extracted from 60,000 lynchin articles
+
+index2 <- read_csv("https://osf.io/download/fwzny/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
   as.data.frame()
 
+# 1650 articles from the black press
+# from master_article_index_6_17 has 11,396 articles
+
+blackindex_master <- read_csv("https://osf.io/download/se69z/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 ```
 
 Index of all Chronicling America coverage.
 
 ```{r}
-#1789-1963, 18.1 million rows
+#1789-1963, 18.1 million rows, all Chroniciling America as of 6/2023
 
-index_chron <- rio::import("/Users/robwells/Library/CloudStorage/GoogleDrive-robwells@umd.edu/My Drive/Lynching UMD/Data/Sampling and Full Chron America/chron_am_manifest.csv")
+#Due to the file size (1.7gb), you will need to download this file to your hard drive and import it in R from your local machine: https://osf.io/download/3kpqa/?view_only=6c106acd6cb54f6f849e8c6f9098809f
 
+
+index_chron <- rio::import("/Users/YOUR_USER_NAME_HERE/Downloads/chron_am_manifest.csv")
 
 index_chron <- janitor::clean_names(index_chron)
 
 ```
 
 
-## Count years and compare
+## Count years for entries 
 ```{r}
+#Count years for Chroniciling America 
 chron_count <- index_chron %>% 
 count(year) %>% 
   mutate(pct = formattable::percent(n/(sum(n)))) %>% 
@@ -60,6 +72,7 @@ count(year) %>%
 
 #write.csv(chron_count, "../output_images_tables/chronicle_count.csv")
 
+#Count years for all lynching articles captured
 lynch_count <- index %>% 
   count(year) %>% 
   mutate(pct = formattable::percent(n/(sum(n)))) %>% 
@@ -75,6 +88,8 @@ combolynch_chron <- chron_count %>%
 ## Viz total and lynch papers
 ```{r}
 
+#Comparing total page count to the pages with lynching news
+
 ggplot(combolynch_chron, aes(x=year)) +
   geom_line(aes(y= chron_pct), size=2, color = "red") +
   geom_line(aes(y=(lynch_pct)), size=1, color = "blue") +
@@ -85,110 +100,18 @@ ggplot(combolynch_chron, aes(x=year)) +
   scale_x_continuous(labels = c(seq(1790, 1960, 10)), breaks = seq(1790, 1960, 10)) +
   labs(title = "Lynching News to Overall News Coverage, 1789-1963",
        caption= "Comparing All Chron America to Lynching News in Chron America as Pct of All Coverage.
-       Graphic by Rob Wells",
+       Graphic by (redacted - peer review)",
        x = "Year")
 
 ```
 
 
+### Analyzing the Lynching Data
+###Figure 1 
 
-# Stratified Samples
-A stratified random sample by year using proportional allocation.
 
 ```{r}
-#sample code: ssampcalc(df, n, strata, over=0)
-
-x <- ssampcalc(index, n=60042, strata=year, over=0.5)
-x <- janitor::clean_names(x)
-x
-
-#Fact check
-#sum(x$nh)
-#nh is the total pages per year
-#wt[,1] is the percentage of the total corpus (60042 pages)
-#Shows peak media coverage of lynching activity between 1893-1910
-#Peak year for coverage was 1903, with 2971 pages and 4.94% of all pages
-
-
-
-```
-
-Next we draw a stratified sample by year, using a sample size of 2,998 articles
-
-```{r}
-#10% sample = 6,004
-# Draw stratified sample (proportional allocation)
-# ssamp(df, n, strata, over=1)
-
-y <- ssamp(index, n=6004, strata=year, over=1)
-y
-
-#fact check
-#this shows a very close parallel to the stratified sample (x) done above of the 60,042 pages
-y_pagecount <- y %>% 
-count(year) %>% 
-   group_by(year) %>% 
-  mutate(pct = (n/6004)*100)
-
-#Write the sample corpus to a spreadsheet
-write.csv(y, "sample_corpus_10pct_dec_27_2023.csv")
-
-```
-
-
-### Chronicling America sample
-
-
-Determine a stratified random sample of Chron America by year using proportional allocation.
-
-```{r}
-#sample code: ssampcalc(df, n, strata, over=0)
-
-xz <- ssampcalc(index_chron, n=18091200, strata=year, over=0.5)
-xz <- janitor::clean_names(x)
-xz
-
-#Fact check
-#sum(x$nh)
-#nh is the total pages per year
-#wt[,1] is the percentage of the total corpus (108,575 pages)
-#Shows peak media coverage of lynching activity between 1893-1910
-
-
-
-```
-
-Next we draw a stratified sample by year, using a sample size of 1,068 articles
-
-```{r}
-# Draw stratified sample (proportional allocation)
-# ssamp(df, n, strata, over=1)
-
-y <- ssamp(index_chron, n=1068, strata=year, over=1)
-y
-
-#fact check
-y_pagecount <- y %>% 
-count(year) %>% 
-   group_by(year) %>% 
-  mutate(pct = (n/1068)*100)
-
-#Write the sample corpus to a spreadsheet
-#write.csv(y, "chron_america_sample.csv")
-
-```
-
-
-
-
-# Analyzing the Lynching Data
-
-Here is a chart, Figure 2, that describes lynching coverage by year, counting news pages with at least one lynching story in the LOC database.
-
-```{r}
-
-#https://docs.google.com/document/d/1XIVFAVP7IztqXRn1lbgGz0Pu0cszu1A3WuGroYPhViQ/edit#
-
+#Here is a chart, Figure 1, that describes lynching search results by year, counting news pages with at least one lynching story in the LOC database.
 count_year <- index %>% 
 count(year) %>% 
    group_by(year) %>% 
@@ -198,54 +121,21 @@ count(year) %>%
   theme(legend.position = "none") +
   labs(title = "Lynching Coverage By Year, 1789-1963", 
        subtitle = "Count of News Pages with Lynching Stories",
-       caption = "n=60,042 pages. Peak page count: 1903: 2,971 pages. Graphic by Rob Wells, 12/27/2023",
+       caption = "n=60,042 pages. Peak page count: 1903: 2,971 pages. Graphic by (redacted - peer review), 6/21/2024",
        y="Count of Pages",
        x="Year")
 
-# pagecount <- index %>% 
-# count(year) %>% 
-#    group_by(year)
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_1_coverage_year_6_21_2024.png"),device = "png",width=9,height=6, dpi=800)
 
-# ggsave(here::here("../hcij_lynching_phase_two/narratives/output_images_tables/coverage_year_12_27_2023.png"),device = "png",width=9,height=6, dpi=800)
-
-# ggsave("../output_images_tables/coverage_year_12_27_2023.png",device = "png",width=9,height=6, dpi=800)
-count_year
-
-```
-
-1% sample
-
-```{r}
-
-#https://docs.google.com/document/d/1XIVFAVP7IztqXRn1lbgGz0Pu0cszu1A3WuGroYPhViQ/edit#
-
-y %>% 
-count(year) %>% 
-   group_by(year) %>% 
-#Sandwich it onto a simple ggplot
-  ggplot(aes(x = year, y = n, fill = n)) +
-  geom_col(position = "dodge") + 
-  theme(legend.position = "none") +
-  labs(title = "10 pct Sample Lynching Coverage By Year, 1789-1963", 
-       subtitle = "Count of News Pages with Lynching Stories",
-       caption = "n=5998, a 10% stratified sample.Graphic by Rob Wells, 12/27/2023",
-       y="Count of Pages",
-       x="Year")
-
-pagecount <- index %>% 
-count(year) %>% 
-   group_by(year)
-
-ggsave("..output/10pct_dec_27_2023.png",device = "png",width=9,height=6, dpi=800)
 
 
 ```
 
-
-
-# Figure 9 Page 1 stories by decade
+### Page 1 stories by decade
+### Figure 9 
 
 ```{r}
+#Using the 11,396 extracted articles, we determine the number of page 1 stories per decade. 
 
 index2$decade <- paste0(substr(index2$year, 0, 3), "0")
 
@@ -266,12 +156,13 @@ pages_decade <- pages_decade %>%
   summarise(n = sum(n)) %>%
   mutate(percentage = round(n / sum(n) * 100, 1)) 
 
-write.csv(pages_decade, "../output/pages_decade_6_18.csv")
+#write.csv(pages_decade, "../output/pages_decade_6_18.csv")
 
 pages_decade %>% 
   filter(!is.na(page_one)) %>%
   filter(decade > "1820") %>% 
   filter(decade < "1970") %>% 
+  #remove outliers
   mutate(page = case_when(
     str_detect(page_one, "TRUE") ~ "PageOne",
     str_detect(page_one, "FALSE") ~ "Inside")) %>% 
@@ -280,98 +171,27 @@ pages_decade %>%
   scale_fill_manual(values = c("PageOne" = "red", "Inside" = "lightblue")) + 
   labs(title = "Percentage Page One Lynching Stories, 1830-1960", 
        subtitle = "Page One Stories By Decade",
-       caption = "Page 1 lynching stories peaked at 46% in the 1920s. Graphic by Rob Wells, 6/18/2024",
+       caption = "Page 1 lynching stories peaked at 46% in the 1920s. Graphic by (redacted - peer review), 6/21/2024",
        y="Pct of Pages",
        x="Decade")
-ggsave("../output_images_tables/pages_decades_6_18_2023.png",device = "png",width=9,height=6, dpi=800)
+
+
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_9_pages_decade_6_21_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 
 ```
-
-### Black Press Pages by Decade
-
-```{r}
-#1045 black press articles. join 714 articles + 358 LOC articles
-blackindex_master <- read.csv("../data/blackindex_master.csv")
-#page one data only for 714 proquest articles
-
-bp <- blackindex_master
-
-
-bp$decade <- paste0(substr(bp$year, 0, 3), "0")
-
-bp <- bp %>% 
-  mutate(page_one = case_when(
-    str_detect(start_page, "\\bA1\\b") ~ "front_page",
-    str_detect(document_type, "front_page") ~ "front_page",  
-     document_type != "front_page" ~ "inside",))
-
-bp <- bp %>% 
-  filter(!is.na(start_page))
-
-#29% of BP articles on page one - sample of 698 articles from Proquest only with the details.
-bp_pageplacement <- bp %>% 
-count(page_one) %>% 
-  mutate(pct =(n/sum(n)))
-
-
-bp_pages_decade <- bp %>%
-  group_by(page_one, decade) %>%
-  count(page_one) %>% 
-   ungroup()
-
-
-bp_pages_decade <- bp_pages_decade %>%
-  group_by(decade, page_one) %>%
-  summarise(n = sum(n)) %>%
-  mutate(percentage = round(n / sum(n) * 100, 1)) %>% 
-  filter(decade < "1970")
-
-
-bp_pages_decade %>% 
-  ggplot(aes(x = decade, y = percentage, fill = page_one)) +
-  geom_col(position = "dodge") + 
-  labs(title = "Black Press Percentage Page One Lynching Stories, 1910-1960", 
-       subtitle = "Page One Stories By Decade",
-       caption = "Page 1 lynching stories peaked at 39% in the 1910s and 1940s. Graphic by Rob Wells, 12/27/2023",
-       y="Pct of Pages",
-       x="Decade")
-ggsave("../output_images_tables/pages_decades_12_27_2023.png",device = "png",width=9,height=6, dpi=800)
-
-
-
-
-```
-
-
 
 Here is the list of all newspapers we captured. I'm just supplying the top 20 results.
 ## Total by newspaper
 
 ```{r}
 
+#Table from Pg. 10 top 10 newspapers
 
-
-index2 <- index %>% 
-  left_join(snlist, by=c("sn")) %>% 
-  rename(newspaper_name = newspaper_name.y, newspaper_state_clean = newspaper_state_clean.y) 
-
-index2 <- subset(index2, select = -c(newspaper_name.x, X, x1, x2, newspaper_state_clean.x))
-
-write.csv(index2, "../data/main_index_dec_28_2023.csv")                  
-  
-
-index2 %>% 
-  select(newspaper_name.x, newspaper_name2, newspaper)
-
-
-newspaper2 <- index2 %>% 
-count(newspaper_name2) %>% 
-   group_by(newspaper_name2) %>% 
+newspaper <- index %>% 
+count(newspaper_name) %>% 
+   group_by(newspaper_name) %>% 
   ungroup() %>% 
-  arrange(desc(n))
-
-newspaper <- newspaper %>% 
   mutate(pct =(n/sum(n))) %>% 
   arrange(desc(pct))
          
@@ -390,7 +210,7 @@ newspaper_top
 newspaper_top %>%
   kable() %>%
   kable_styling("striped") %>%
-  save_kable("../output_images_tables/top_newspapers_12_27_2023.png")
+  save_kable("../output_images_tables/top_newspapers_6_21_2024.png")
 
 ```
 
@@ -411,14 +231,11 @@ state <- state %>%
 state$pct_total_pages <-formattable::percent(state$pct_total_pages, 1)
 state
 
-
-#problem with kable until I installed webshot::install_phantomjs()
-
 #top states by page count
 state %>%
   kable() %>%
   kable_styling("striped") %>%
-  save_kable("../output_images_tables/top_states_12_27_2023.png")
+  save_kable("../output_images_tables/top_states_6_21_2024.png")
 ```
 
 
@@ -491,12 +308,11 @@ index <- index %>%
                             state=="Missouri" ~ "Border",
                                .default = "Not_Border"))
 
-write.csv(index2, "../data/main_index_dec_28_2023.csv")
 ```
 
 
-## State-region totals
-
+### State-region totals
+### Figure 2
 ```{r}
 
 #total by region
@@ -524,36 +340,15 @@ region %>%
   geom_text(aes(label = scales::percent(pct_total_pages)), size = 4, hjust=.5, vjust=0) + 
   labs(title = "Regional Distribution of Lynching Coverage, 1789-1963", 
        subtitle = "Newspapers by Census Region. Total 2,118 newspapers",
-       caption = "Newspapers by region with lynching coverage. n=60,042 pages. Graphic by Rob Wells, 12/27/2023",
+       caption = "Newspapers by region with lynching coverage. n=60,042 pages. Graphic by (redacted - peer review), 6/21/2024",
        y="Pct of Pages",
        x="Region")
 
-ggsave("../output_images_tables/regional_coverage_12_27_2023.png",device = "png",width=9,height=6, dpi=800)
 
 
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_2_regional_coverage_6_21_2024.png"),device = "png",width=9,height=6, dpi=800)
 ```
 
-```{r}
-#total by newspaper, region
-newspaper2 <- index %>% 
-   select(newspaper_name, region) %>% 
-  distinct()
-
-newspaper2 <- newspaper2 %>%  
-  count(region)
-
-newspaper2 <- newspaper2 %>% 
-  mutate(pct_total_pages =(n/sum(n))) %>% 
-  arrange(desc(pct_total_pages))
-    
-newspaper2$pct_total_pages <-formattable::percent(newspaper2$pct_total_pages, 1)
-
-#fact check
-#sum(newspaper2$pct)
-#sum(newspaper2$n)
-
-
-```
 
 # Tolnay Beck Bailey Victim Data - Compare Trends with News Coverage
 
@@ -566,32 +361,22 @@ There are 2,249 lynching cases in this database, again from 1882-1929
 There is also the Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020, probable and confirmed lynchings.
 https://app.box.com/s/99ggc6epn4rdvritke0h/file/992017683748
 
-**Our newspaper research reaches back much earlier than this dataset.** We have identified news reports of lynching as early as 1789.
 
 **Below, we compare the frequency of news coverage to the Tolnay victims list.**
 
 ```{r}
 
-#Outdated data using the seguin - tolnay merged. See Notes for why this is problematic. April 11, 2023
-# seguin_tolnay <- read_csv(here::here("../victim_name_search/victim_name_regex_data/seguin_and_tolnay_beck_merged.csv")) %>% 
-#   as.data.frame()
-
-tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+# This contains tolnay_beck	5871 confirmed and probable	lynchings
+tolnay_beck <- read_csv("https://osf.io/download/vb8wa/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
   as.data.frame()
 
 tolnay_beck <- janitor::clean_names(tolnay_beck)
-# This contains
-# tolnay_beck	5871 confirmed and probable	
+
 
 ```
 
 ```{r}
-tolnay_beck %>% 
-  count(status)
-
-```
-
-```{r}
+#Cleaning the types of lynchings
 tolnay_beck <- tolnay_beck %>% 
   mutate(
     status_clean = str_to_lower(status)) 
@@ -602,7 +387,8 @@ tolnay_beck$status_clean <- stringr::str_trim(tolnay_beck$status_clean)
 tolnay_beck %>% 
   count(status_clean) 
 ```
-
+### Lynching Totals, Tolnay & Beck, 2022
+### Figure 3
 ```{r}
 tolnay_beck <- tolnay_beck %>% 
   mutate(
@@ -612,16 +398,10 @@ tolnay_beck <- tolnay_beck %>%
       TRUE ~ status_clean
     ))
 
-install.packages('htmlTable')
-library(htmlTable)
-
 tolnay_counts <- tolnay_beck %>% 
   count(status_clean) %>% 
   mutate(pct_total = round(n/5871, 3)) %>% 
   mutate(pct_total = formattable::percent(pct_total, 1)) 
-
-install.packages("rempsyc")
-library(rempsyc)
 
 nice_table(tolnay_counts, short = TRUE)
 
@@ -632,15 +412,25 @@ kbl(tolnay_counts) %>%
   column_spec(2, width = "5em", background = "yellow")
 
 
-tolnay_counts %>%
+tolnay_graphic <- tolnay_counts %>%
   arrange(desc(n)) %>% 
   kbl(caption = "Lynching Totals, Tolnay & Beck, 2022", font_size = 30) %>%
   kable_classic(full_width = F, html_font = "Cambria") %>% 
   column_spec(1, bold = T, border_right = T) %>%
   column_spec(2, width = "5em", background = "yellow") 
 
-#Tolnay Beck Lynch Totals 4_14_2023.png
- 
+library(webshot)
+# Save the kable table as an image
+temp_html <- tempfile(fileext = ".html")
+save_kable(tolnay_graphic, file = temp_html)
+img_file <- tempfile(fileext = ".png")
+webshot(temp_html, file = img_file, zoom = 2) # Adjust zoom to control resolution
+
+# Convert the image to a ggplot object
+img <- grid::rasterGrob(png::readPNG(img_file), interpolate = TRUE)
+
+# Save the ggplot object as a high-resolution image
+ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), dpi = 800, width = 10, height = 10)
 ```
 
 ```{r}
@@ -667,7 +457,7 @@ count(year) %>%
   theme(legend.position = "none") +
   labs(title = "Actual, Threatened Lynchings, 1865-2020", 
        subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
-       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by Rob Wells, 4/14/2023",
+       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
        y="Count",
        x="Year")
 #Actual, Threatened Lynchings Tolnay 4_14_2023
@@ -684,7 +474,7 @@ group_by(year) %>%
   geom_col(position = "dodge") + 
   labs(title = "Actual, Threatened Lynchings, 1865-2020", 
        subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
-       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by Rob Wells, 4/14/2023",
+       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
        y="Count",
        x="Year")
 
@@ -807,7 +597,7 @@ pl <- pl + theme_classic()
 pl <- pl + labs(x = "Year", y = "Weighted Score")
 pl <- pl + labs(title = "Media Coverage vs Lynchings, 1865-1963", 
         subtitle = "Weighted Samples: Media Coverage (Red) vs. Actual Victims (Blue)",
-        caption = "Tolnay_Beck Victims n = 5871. Media n = 59,597 pages. Graphic by Rob Wells, 4/11/2023")
+        caption = "Tolnay_Beck Victims n = 5871. Media n = 59,597 pages. Graphic by (redacted - peer review), 4/11/2023")
 
 # ggsave("../output_images_tables/media_lynchings_4_11_2023.png", device = "png",width=9,height=6, dpi=800)
 
@@ -832,7 +622,7 @@ df <- combo1 %>%
    scale_x_continuous(labels = c(seq(1890, 1930, 5)), breaks = seq(1890, 1930, 5)) +
    labs(title = "Media Coverage Exceeds Actual Lynchings After 1893", 
         subtitle = "Weighted Samples: Media Coverage (Red) vs. Actual Victims (Blue)",
-        caption = "tolnay_beck Victims n = 5871. Media n = 59,597 pages. Graphic by Rob Wells, 4/11/2023")
+        caption = "tolnay_beck Victims n = 5871. Media n = 59,597 pages. Graphic by (redacted - peer review), 4/11/2023")
 
 #ggsave(here::here("../hcij_lynching_phase_two/narratives/output_images_tables/media_lynching_2.png"),device = "png",width=9,height=6, dpi=800)
 
@@ -945,7 +735,7 @@ ggplot(aes(x=year)) +
   labs(title = "UMD Lynching News vs Pfiefer Lynching Data",
        subtitle= "Red bars show UMD lynching news pages against Pfiefer lynching case data",
        caption= "Total news pages vs Pfiefer (2011) Lynching data. 
-       Graphic by Rob Wells. March 6, 2023",
+       Graphic by (redacted - peer review). March 6, 2023",
        x = "Year")
 
 ggsave(here::here("../hcij_lynching_phase_two/narratives/output_images_tables/umd_vs_pfiefer_3_6_2023.png"),device = "png",width=9,height=6, dpi=800)
@@ -1030,7 +820,7 @@ egraf1 <- e %>%
   theme(legend.position = "none") +
   labs(title = "Lynching News to Overall News Coverage, 1789-1963", 
        subtitle = "Each Page of Lynching News per 1000 Overall News Pages",
-       caption = "Graphic by Rob Wells, 9/24/2022",
+       caption = "Graphic by (redacted - peer review), 9/24/2022",
        y="lynching news pages per 1000 total news pages",
        x="Year")
 
@@ -1055,7 +845,7 @@ dl <- dl + theme_classic()
 dl <- dl + labs(x = "Year", y = "News & Lynchings")
 dl <- dl + labs(title = "Weighted Media Coverage vs Pct of total Lynchings, 1865-1963", 
         subtitle = "Lynching Stories per 100 Total Pages (Red) vs. Pct of Total Victims / Year (Blue)",
-        caption = "tolnay_beckVictims n = 7064. Media n = 108,575 pages / 18 million pages. Graphic by Rob Wells, 9/24/2022")
+        caption = "tolnay_beckVictims n = 7064. Media n = 108,575 pages / 18 million pages. Graphic by (redacted - peer review), 9/24/2022")
 
 #ggsave("weighted_coverage_lynching.png",device = "png",width=9,height=6, dpi=800)
 dl
@@ -1072,7 +862,7 @@ egraf <- e %>%
   #geom_text(aes(x= year, y= lynching_news_ratio), hjust=.5, vjust=0) +
   labs(title = "Ratio of Lynchings to News Stories, 1865-1946", 
        subtitle = "Each Lynching Divided Into Total News Pages",
-       caption = "1947 & beyond filtered as outlier. Graphic by Rob Wells, 9/24/2022",
+       caption = "1947 & beyond filtered as outlier. Graphic by (redacted - peer review), 9/24/2022",
        y="lynching_news_ratio",
        x="Year")
 
@@ -1387,12 +1177,5 @@ Returns stratified sample using proportional allocation without replacement
 
 # Team: 
 
--   Rob Wells, Ph.D., Associate Professor, University of Maryland Philip Merrill College of Journalism
-
--   Sean Mussenden, Data Editor, Howard Center for Investigative Journalism, Senior Lecturer
-
--   Jack Rasiel, Data Scientist, Consultant to Howard Center for Investigative Journalism
-
--   Mary Dalrymple, Master of Arts student, Merrill College and iSchool, former Associated Press reporter
-
+--(redacted - peer review)
     --30--
