@@ -35,9 +35,9 @@ master_article_index_6_17 has 11,396 articles
 
 
 ```{r}
-#Index of 11,396 articles of text extracted from 60,000 lynchin articles
+#Index of 11,223 articles of text extracted from 60,000 lynching articles
 
-master_article_index_june_18_2024 <- read_csv("https://osf.io/download/fwzny/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
+master_article_index_june_22_2024 <- read_csv("https://osf.io/download/hzyw6/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
   as.data.frame()
 
 #60,042 Library of Congress articles on lynching captured.
@@ -47,13 +47,16 @@ main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6
 
 
 ```{r}
-#black press all: 1650 articles
+# 1633 from the black press
+# from master_article_index_6_17 has 11,223 articles
+# June 22 data cleaning and compiling
 
-black_press_master_june_18_2024 <- master_article_index_june_18_2024 %>% 
+black_press_master_june_22_2024 <- master_article_index_june_22_2024 %>% 
   filter(black_press =="Y")
 
+#write.csv(black_press_master_june_22_2024, "../data/blackindex_master_june_18_2024.csv")
 
-black_press_master_june_18_2024 %>% 
+black_press_master_june_22_2024 %>% 
   count(newspaper_name) %>% 
   arrange(desc(n))
 
@@ -69,28 +72,13 @@ black_papers <- read_csv("../data/black_papers.csv") %>%
 black_papers <- black_papers %>% 
   mutate(black = "Y")
 
-
-
-```
-
-# Black Press index
-```{r}
-# 1650 from the black press
-# from master_article_index_6_17 has 11,396 articles
-# June 17 data cleaning and compiling
-
-blackindex_master <- read.csv("../data/master_article_index_june_18_2024.csv") %>% 
-  filter(black_press =="Y")
-
-write.csv(blackindex_master, "../data/blackindex_master_june_18_2024.csv")
-
 ```
 
 
 # Black Press articles for tokenization
 ```{r}
 
-black_articles_text_june_18_2024 <- read.csv("../data/extracted_text_june_18_2024.csv")%>% 
+black_articles_text_june_18_2024 <- read.csv("../data/extracted_text_june_22_2024.csv")%>% 
   filter(black_press =="Y")
 
 write.csv(black_articles_text_june_18_2024, "../data/black_articles_text_june_18_2024.csv")

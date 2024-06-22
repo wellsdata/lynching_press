@@ -1,7 +1,7 @@
 ---
 title: "Text Compiler"
 author: "Rob Wells"
-date: "2024-6-18-23"
+date: "2024-6-22-23"
 output: html_document
 ---
 ```{r}
@@ -20,15 +20,15 @@ here::i_am("Text_Compiler_Article_Filter_6_17.rmd")
 # List out text files that match pattern .txt, create DF
 ###
 #loads 11490 articles
-files <- list.files("~/Code/lynching_press/data/articles_may_16_2024/", pattern="*.txt") %>% 
+files <- list.files("~/Code/lynching_press/data/articles_june_22_2024/", pattern="*.txt") %>% 
   as.data.frame() %>%
   rename(filename = 1) 
 
-index <- rio::import("../data/master_article_index_june_18_2024.csv") %>% 
+index <- rio::import("../data/master_article_index_june_22_2024.csv") %>% 
   mutate(file_id = str_trim(file_id)) %>% 
   mutate(filename = paste0(file_id,".txt")) %>%
   inner_join(files) %>%
-  mutate(filepath = paste0("~/Code/lynching_press/data/articles_may_16_2024/",filename))
+  mutate(filepath = paste0("~/Code/lynching_press/data/articles_june_22_2024/",filename))
 
 #AI to the rescue
 library(dplyr)
@@ -79,7 +79,12 @@ joined_df <- articles_df %>%
   select(filename, sentence = value) %>%
   inner_join(index, by = "filename")
 
-write.csv(joined_df, ("../data/extracted_text_june_18_2024.csv"))
+write.csv(joined_df, ("../data/extracted_text_june_22_2024.csv"))
+
+black_press_extracted_text_june_22_2024 <- joined_df %>% 
+  filter(black_press =="Y")
+
+write.csv(black_press_extracted_text_june_22_2024, ("../data/black_press_extracted_text_june_22_2024.csv"))
 
 # View the resulting data frame
 print(head(joined_df))
@@ -108,11 +113,13 @@ print(head(joined_df))
 
 ```{r}
 # Count the number of unique file names
-#11396 articles
+#11223 articles
 articles_df %>%
   summarize(n_unique_files = n_distinct(filename))
 
 
+black_press_extracted_text_june_22_2024 %>%
+  summarize(n_unique_files = n_distinct(filename))
 ```
 
 

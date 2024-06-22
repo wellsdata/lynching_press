@@ -1,0 +1,405 @@
+---
+title: "Article Cleaning"
+author: "Rob Wells"
+date: "2024-06-24"
+output: html_document
+---
+```{r}
+library(tidyverse)
+```
+
+
+#Filtering and combining indexes
+```{r}
+
+#Index of 11,396 articles of text extracted from 60,000 lynching articles
+
+master_article_index_june_18_2024 <- read_csv("https://osf.io/download/fwzny/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
+  as.data.frame()
+
+
+#7162 articles with the fixed URL. Includes Black Press
+oct_19_master_article_index <- read.csv("/Users/robwells/Code/lynching_press/storage_old_article_indexes_lists/master_article_index_10.19.csv")
+
+
+#6809 files in the new index match the original. That means 4587 new articles
+matched <-  master_article_index_june_18_2024%>% 
+ inner_join(oct_19_master_article_index, by=c("file_id"="file_id2"))
+
+
+#these are the 4587 new articles from the extraction 
+new <-  master_article_index_june_18_2024%>% 
+ anti_join(oct_19_master_article_index, by=c("file_id"="file_id2"))
+
+write.csv(new, "../data/_4587_new_extracted_list.csv")
+
+```
+
+
+### Extract the new articles to a folder for review
+```{r}
+
+inputdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/articles_may_16_2024/" 
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/review_articles_june_2024/" 
+
+new <- new %>% 
+  mutate(file_id2 = paste(file_id, ".txt", sep = ''))
+
+filestocopy <- list.files(inputdir, full.names = TRUE) %>% 
+  as_tibble() %>% 
+  mutate(filename = basename(value)) %>% 
+  inner_join(new, by = c("filename" = "file_id2"))
+
+vector <- filestocopy$value
+
+map(vector, ~file.copy(from = ., to = file.path(targetdir, basename(.))))
+
+```
+
+
+### Cleaning:
+I reviewed the review_articles_june_2024 and deleted 95 with scrambled text
+Time to build a new index of the cleaned new articles
+```{r}
+#lists 4492 files, with 95 removed
+folder_files1 <- list.files("/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/review_articles_june_2024/", pattern="*.txt") %>%
+  as.data.frame() %>%
+  rename(file_id = 1) %>% 
+  mutate(index = 1:length(file_id)) 
+
+#cut .txt
+folder_files1$file_id <- gsub(".txt", "", folder_files1$file_id)
+
+#4492 new articles index
+new_articles <- master_article_index_june_18_2024 %>% 
+  inner_join(folder_files1, by=c("file_id"))
+
+#6904 older articles extracted
+old_articles <- master_article_index_june_18_2024 %>% 
+  anti_join(folder_files1, by=c("file_id"))
+
+```
+
+
+## Extract the older articles into a separate folder
+```{r}
+
+inputdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/articles_may_16_2024/" 
+targetdir <- "/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/filtered_may_16_2024/" 
+
+old_articles <- old_articles %>% 
+  mutate(file_id2 = paste(file_id, ".txt", sep = ''))
+
+filestocopy <- list.files(inputdir, full.names = TRUE) %>% 
+  as_tibble() %>% 
+  mutate(filename = basename(value)) %>% 
+  inner_join(old_articles, by = c("filename" = "file_id2"))
+
+vector <- filestocopy$value
+
+map(vector, ~file.copy(from = ., to = file.path(targetdir, basename(.))))
+
+#6896 previously extracted articles moved to filtered_may_16_2024
+#Now, review this once again for kicks
+
+#174 articles cleaned
+```
+
+
+## Rebuild index of filtered_may_16_2024/
+```{r}
+#lists 6731 files, with 173 removed
+old_cleaned_files <- list.files("/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/filtered_may_16_2024/", pattern="*.txt") %>%
+  as.data.frame() %>%
+  rename(file_id = 1) %>% 
+  mutate(index = 1:length(file_id)) 
+
+#cut .txt
+old_cleaned_files$file_id <- gsub(".txt", "", old_cleaned_files$file_id)
+
+#6731 cleaned old articles index
+old_cleaned_index <- master_article_index_june_18_2024 %>% 
+  inner_join(old_cleaned_files, by=c("file_id"))
+
+#Finally, the new index based on all this cleaning
+#contains 11,223 articles
+master_article_index_june_22_2024 <- rbind(old_cleaned_index, new_articles) %>% 
+  subset(select = -c(...1, index.y)) %>% 
+  rename(index = index.x)
+
+#write.csv(master_article_index_june_22_2024, "../data/master_article_index_june_22_2024.csv")
+
+#the new articles are in articles_june_22_2024
+
+```
+
+
+
+#------------------------------------------------------------------------------
+#. Notes Below
+#------------------------------------------------------------------------------
+
+
+
+#Checking discrepancy between index and files
+```{r}
+#4,022 articles in index
+#/Users/robwells/Code/hcij_lynching_phase_two/narratives/data/aug_23_article_index.csv
+#But!
+# 3385 articles extracted
+# /Users/robwells/Code/hcij_lynching_phase_two/articles_8_23
+
+x <- jackindex_aug23 %>% 
+  group_by(file_id) %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  arrange(desc(n))
+
+sum(x$n)
+#1379-557
+#882 duplicated records
+
+#list of all 3386 articles in folder
+folder_files <- list.files("/Users/robwells/Code/hcij_lynching_phase_two/articles_8_23/", pattern="*.txt") %>%
+  as.data.frame() %>%
+  rename(file_id = 1) %>% 
+  mutate(index = 1:length(file_id)) 
+
+#cut .txt
+folder_files$file_id <- gsub(".txt", "", folder_files$file_id)
+
+#merge the file_id in jackindex_aug23
+jackindex_aug23 <- jackindex_aug23 %>% 
+  mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
+
+#3385 files in the folder and the index
+files_in <- jackindex_aug23 %>% 
+  inner_join(folder_files, by=c("file_id2"="file_id"))
+
+#637 files not in the folder but in the index
+files_out <- jackindex_aug23 %>% 
+  anti_join(folder_files, by=c("file_id2"="file_id"))
+
+#count file names
+y <- files_out %>% 
+  group_by(file_id2) %>% 
+  count() 
+
+write_csv(files_out, "../output/files_out_aug23.csv")
+
+```
+
+
+```{r}
+#Remove articles cleaned out previously
+#this file shows the 282 articles dropped during my March 8 and July 17 cleaning process: 1673 articles in jack Feb 2 index down to 1387 articles now
+anti_jack <- read.csv("../Output/dropped_articles_July_17.csv")
+#clean this file
+anti_jack <- anti_jack %>% 
+ select(2:14)
+#clean article_id
+anti_jack$article_id <- gsub("-", "", anti_jack$article_id)
+#merge the file_id 
+anti_jack <- anti_jack %>% 
+  mutate(file_id2 = (paste(file_id, article_id, sep = '_')))
+#clean up - remove na row
+#anti_jack <- slice(anti_jack, -c(268))
+
+#write.csv(anti_jack, "../Output/dropped_articles_July_17.csv")
+
+#3312 files in the folder and the index
+#74 removed
+extracted_articles_aug25 <- files_in %>% 
+  anti_join(anti_jack, by=c("file_id2"))
+
+#new index is 3312 files
+write.csv(extracted_articles_aug25, "../Data/extracted_articles_aug25.csv")
+```
+
+
+
+```{r}
+#years counted in new extraction
+
+extracted_articles_aug25 %>% 
+  count(year) %>% 
+  arrange(year)
+
+#25 pre-Civil War articles
+precivilwar <- extracted_articles_aug25 %>% 
+  filter(year < 1861) %>% 
+  count(year) %>% 
+  arrange(year)
+
+#sum(precivilwar$n)
+
+```
+
+### Sean's compiler of raw text. 
+```{r include=FALSE}
+
+#This was run once to compile the lynch object and "articles_1pct_dec26.csv" and then used for tokenizing, etc
+
+#####################
+# Begin SM Code #####
+#####################
+
+###
+# List out text files that match pattern .txt, create DF
+###
+#previously 848 stories
+# files <- list.files("../sample_corpus_1pct_article_text/", pattern="*.txt") %>%
+#   as.data.frame() %>%
+#   rename(filename = 1) %>%
+#   filter(!str_detect(filename,"_bak"))
+# # Loads 1,387 stories I reviewed and cleaned on March 8
+# files <- list.files("~/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08", pattern="*.txt") %>% 
+
+###
+# Load 1,387 stories I reviewed and cleaned on March 8
+# previously: Load 1,466  stories provided by jack, create join column, join to files list (previously 848 stories)
+#Previous index: jackindex <- read_csv("../sample_corpus_1pct_article_text/stratified_sample_manifest.csv")
+###
+
+#Loads the 2246 files from July 16
+# files <- list.files("~/Code/hcij_lynching_phase_two/articles_july_16", pattern="*.txt") %>% 
+#   as.data.frame() %>%
+#   rename(filename = 1) %>%
+#   filter(!str_detect(filename,"_bak"))
+
+files <- list.files("~/Code/hcij_lynching_phase_two/narratives/code/latest_articles", pattern="*.txt") %>% 
+  as.data.frame() %>%
+  rename(filename = 1) 
+
+
+
+# jackindex <- rio::import("../data/july_16_article_index.csv") %>%
+#   mutate(filename = paste0(file_id,"_",article_id,".txt")) %>%
+#   inner_join(files) %>%
+#   mutate(filepath = paste0("/Users/robwells/Code/hcij_lynching_phase_two/articles_july_16/",filename))
+
+jackindex <- extracted_articles_aug25 %>% 
+  mutate(filepath = paste0("~/Code/hcij_lynching_phase_two/narratives/code/latest_articles/",filename))
+
+
+#The data is here
+#https://github.com/Howard-Center-Investigations/hcij_lynching_phase_two/blob/main/article_text_7_15/article_text_2022-07-14.tar.gz
+
+###
+# Define function to loop through each text file referenced in jackindex df
+###
+
+create_article_text <- function(row_value) {
+  
+  #row_value is the single argument that is passed to the function
+  # Take each row of the dataframe
+  temp <- jackindex %>%
+    slice(row_value)
+  
+  # Store the filename for  use in constructing articles dataframe
+  temp_filename <- temp$filename
+  
+  # Create a dataframe by reading in lines of a given textfile
+  # Add a filename column 
+  articles_df_temp <- read_lines(temp$filepath) %>%
+    as_tibble() %>%
+    mutate(filename = temp_filename)
+  
+  # Bind results to master articles_df
+  # <<- returns to global environment
+  articles_df <<- articles_df %>%
+    bind_rows(articles_df_temp)
+}
+
+###
+# Create elements needed to run function
+###
+
+# Create empty tibble to store results
+articles_df <- tibble()
+#running once to test
+#create_article_text(2) 
+# Create an array of numbers to loop through, from 1 to the number of rows in our index dataframe 
+row_values <- 1:nrow(jackindex)
+
+###
+# Execute function using lapply
+# This loops through each row of the dataframe and append results to master file
+###
+
+lapply(row_values, create_article_text)
+
+# Error: The size of the connection buffer (131072) was not large enough
+# to fit a complete line:
+# * Increase it by setting `Sys.setenv("VROOM_CONNECTION_SIZE")`
+#https://github.com/tidyverse/vroom/issues/364
+#Sys.setenv(VROOM_CONNECTION_SIZE = 10000000)
+
+
+###
+# Clean up articles_df and join to index dataframe
+###
+
+articles_df <- articles_df %>%
+  select(filename, sentence=value) %>%
+  inner_join(jackindex)
+
+#write.csv(articles_df, "../data/articles_aug_25.csv")
+
+#####################
+# End SM Code #####
+#####################
+
+# write.csv(articles_df, "articles_july_16.csv")
+# lynch <- articles_df
+# write_csv(jackindex, "jackindex_july16.csv")
+```
+
+
+# Notes
+
+# finding the articles dropped from the index due to March 8 cleaning
+```{r}
+# jack_ORIGINAL_index <- read_csv(here:here("~/Code/hcij_lynching_phase_two/Storage_Older_Versions/article_text_2023-02-01_original_bak/LayoutBoxes_merged_20230123-162719_index.csv"))
+
+jack_ORIGINAL_index <- read_csv("~/Code/hcij_lynching_phase_two/Storage_Older_Versions/article_text_2023-02-01_original_bak/LayoutBoxes_merged_20230123-162719_index.csv")
+
+anti_jack <- jack_ORIGINAL_index %>% 
+  anti_join(jackindex, by=("file_id")) %>% 
+  distinct()
+
+anti_jack %>% 
+  count(file_id) %>% 
+  arrange(desc(n))
+
+#this file shows the 286 articles dropped during my March 8 cleaning process: 1673 articles in jack Feb 2 index down to 1387 articles now
+#write.csv(anti_jack, "~/Code/hcij_lynching_phase_two/dropped_articles_march_8.csv")
+
+```
+
+#121 articles do not match the original list
+excluded<- jackindex_march8 %>% 
+  anti_join(jackindex_july16, by=c("file_id", "article_id")) %>% 
+  distinct()
+
+#1432 articles on new list not on old list
+excluded1 <- jackindex_july16 %>% 
+  anti_join(jackindex_march8, by=c("file_id", "article_id")) %>% 
+  distinct()
+
+#1182 articles on new list not on pre-March8 list
+excluded2 <- jackindex_july16 %>% 
+  anti_join(jack_ORIGINAL_index, by=c("file_id", "article_id")) %>% 
+  distinct()
+
+#160 articles on old list not on new July 16 list
+excluded3 <- jack_ORIGINAL_index %>% 
+  anti_join(jackindex_july16, by=c("file_id",  "article_id"))
+
+# excluded3 <- jack_ORIGINAL_index %>% 
+#   anti_join(jackindex_july16, by=c("file_id", "article_id")) %>% 
+#   distinct()
+
+#test - pre-march and march 8 correctly show 286 articles cut from new list
+excluded5 <- jack_ORIGINAL_index %>% 
+  anti_join(jackindex_march8, by=c("file_id",  "article_id"))
