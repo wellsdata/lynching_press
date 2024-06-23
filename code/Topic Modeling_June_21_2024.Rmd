@@ -70,19 +70,22 @@ klippy::klippy()
 
 ### Import Data
 ```{r include=FALSE}
-#import 11,396 text files that were compiled into a df  
-lynch <- read_csv("https://osf.io/download/w3pmh/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+#import 11,223 text files that were compiled into a df  
+lynch <- read_csv("https://osf.io/download/p32he/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-#index of 11,396 extracted articles, a 19% sample which has been checked by a coder and represents all valid entries
-master_article_index_june_18_2024 <- read_csv("https://osf.io/download/fwzny/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
+#index of 11,223 extracted articles, a 19% sample which has been checked by a coder and represents all valid entries
+master_article_index_june_22_2024 <- read_csv("https://osf.io/download/hzyw6/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
   as.data.frame()
-
 
 
 #60,042 Library of Congress articles on lynching captured.
 main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
 main_index <- janitor::clean_names(main_index)
+
+#subset 9589 mainstream white owned papers to eliminate Black newspapers
+lynch1 <- lynch %>% 
+    filter(black_press != "Y" | is.na(black_press))
 
 #strip down to filename and text for tokenizing
 textdata <- lynch %>% 
@@ -92,9 +95,15 @@ textdata <- lynch %>%
 
 ```
 
+# Redo for White Only Papers
+
 
 ### Process into corpus object
 ```{r}
+textdata <- lynch1 %>% 
+  select(filename, sentence, year) %>% 
+  as.data.frame() %>% 
+  rename(doc_id = filename, text= sentence)
 
 # load stopwords
 english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
@@ -143,6 +152,7 @@ Articles per decade
 ```{r}
 #install.packages("formattable")
 articles_decades <- textdata %>% 
+  distinct(doc_id, .keep_all=TRUE) %>% 
   count(decade) %>% 
   mutate(pct_total= (n/sum(n))) %>% 
   mutate(pct_total= formattable::percent(pct_total)) %>% 
@@ -151,7 +161,7 @@ articles_decades <- textdata %>%
 
 library(kableExtra)
 articles_decades %>%
-  kbl(caption = "LOC Lynching Articles by Decade (n=11,396, 6/21/2024)", font_size = 30) %>%
+  kbl(caption = "LOC Lynching Articles by Decade (n=11,223, 6/23/2024)", font_size = 30) %>%
   kable_classic(full_width = F, html_font = "Cambria") %>% 
   column_spec(1, bold = T, border_right = T) %>%
   column_spec(2, width = "5em") %>% 
@@ -160,9 +170,7 @@ articles_decades %>%
 
 
 #Fact check 308597 rows tabulated
-# textdata %>%
-#   count(decade) %>%
-#   summarize(sum(n))
+#sum(articles_decades$n)
 ```
 
 
@@ -244,15 +252,279 @@ vizDataFrame <- vizDataFrame %>%
 #Updated June 27. See notes: https://docs.google.com/document/d/1BvYAye_8biVUaJchm1PB1Z0hrycBvdX0jBwlB38xKsc/edit
 vizDataFrame <- vizDataFrame %>% 
   mutate(category = case_when(
-    str_detect(variable, "lynch mob negro murder crime law men hang attempt made") ~ "lynch_law",
-    str_detect(variable, "peopl south great race countri american good state public excit") ~ "unclear_topic",
-    str_detect(variable, "bodi men jail mob fire hang crowd shot tree hous") ~ "lynch_mob",
-    str_detect(variable, "negro white man kill murder year assault mrs woman charg") ~ "lynching_violence",
+    str_detect(variable,  "counti citi night mile jail day town morn march juli") ~ "lynchings",
+    str_detect(variable, "law crime peopl lynch great excit state good citizen countri") ~ "critizing_lynching",
+    str_detect(variable, "lynch mob negro jail men hang night crowd prison attempt") ~ "negro_lynching",
+    str_detect(variable, "negro murder white lynch man kill year assault charg mrs") ~ "female_victim",
+     str_detect(variable, "sheriff state court juri governor order offic prison judg deputi") ~ "legal",
+    str_detect(variable, "bodi fire shot hang hous tree found street rope door") ~ "lynch_mob",
+    ))
+
+
+```
+
+#Fact Check and Validate Topics
+
+Topic 1: lynchings "counti citi night mile jail day town morn march juli" 
+Topic 2: criticizing_lynchings "law crime peopl lynch great excit state good citizen countri" 
+Topic 3: negro_lynching "lynch mob negro jail men hang night crowd prison attempt" 
+Topic 4: female_victim "negro murder white lynch man kill year assault charg mrs" 
+Topic 5: 5_legal_proceedings "sheriff state court juri governor order offic prison judg deputi" 
+Topic 6:  lynch_mob "bodi fire shot hang hous tree found street rope door" 
+
+
+### for female_victim 
+```{r}
+theta2 <- as.data.frame(theta)
+
+female <- theta2 %>% 
+  #renaming for a general topic
+  rename(female = '4') %>% 
+  top_n(20, female ) %>%
+  arrange(desc(female )) %>% 
+  select(female )
+
+# Apply rownames_to_column
+female  <- tibble::rownames_to_column(female , "story_id") 
+
+female $story_id <- gsub("X", "", female $story_id)
+
+head(female$story_id, 20)
+#Checks out June 23
+
+
+```
+
+     
+### for 5_legal_proceedings
+```{r}
+theta2 <- as.data.frame(theta)
+
+legal <- theta2 %>% 
+  #renaming for a general topic
+  rename(legal = '5') %>% 
+  top_n(20, legal ) %>%
+  arrange(desc(legal )) %>% 
+  select(legal )
+
+# Apply rownames_to_column
+legal  <- tibble::rownames_to_column(legal , "story_id") 
+
+legal $story_id <- gsub("X", "", legal $story_id)
+
+head(legal$story_id, 20)
+#Checks out June 23
+
+
+```
+
+
+### for negro_lynching
+```{r}
+theta2 <- as.data.frame(theta)
+
+unknown <- theta2 %>% 
+  #renaming for a general topic
+  rename(unknown = '3') %>% 
+  top_n(20, unknown ) %>%
+  arrange(desc(unknown )) %>% 
+  select(unknown )
+
+# Apply rownames_to_column
+unknown  <- tibble::rownames_to_column(unknown , "story_id") 
+
+unknown $story_id <- gsub("X", "", unknown $story_id)
+
+head(unknown$story_id, 20)
+#Checks out June 23
+#main theme is negros are lynching victims
+
+```
+
+#### for critizing_lynching
+```{r}
+theta2 <- as.data.frame(theta)
+
+critic<- theta2 %>% 
+  #renaming for a general topic
+  rename(critic = '2') %>% 
+  top_n(20, critic) %>%
+  arrange(desc(critic)) %>% 
+  select(critic)
+
+# Apply rownames_to_column
+critic <- tibble::rownames_to_column(critic, "story_id") 
+
+critic$story_id <- gsub("X", "", critic$story_id)
+
+#Checks out June 23
+
+
+```
+
+
+# Earlier Version with Black and White Papers
+### Process into corpus object
+```{r}
+
+# load stopwords
+english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# create corpus object
+corpus <- Corpus(DataframeSource(textdata))
+# Preprocessing chain
+processedCorpus <- tm_map(corpus, content_transformer(tolower))
+processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
+processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
+processedCorpus <- tm_map(processedCorpus, removeNumbers)
+processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
+processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+```
+
+```{r tm3a}
+#DTM: rows correspond to the documents in the corpus. Columns correspond to the terms in the documents. Cells correspond to the weights of the terms. (Girder)
+# compute document term matrix with terms >= minimumFrequency
+minimumFrequency <- 5
+DTM <- DocumentTermMatrix(processedCorpus, control = list(bounds = list(global = c(minimumFrequency, Inf))))
+# have a look at the number of documents and terms in the matrix
+dim(DTM)
+# due to vocabulary pruning, we have empty rows in our DTM
+# LDA does not like this. So we remove those docs from the
+# DTM and the metadata
+sel_idx <- slam::row_sums(DTM) > 0
+DTM <- DTM[sel_idx, ]
+textdata <- textdata[sel_idx, ]
+#5 term minimum[1] 1387 3019
+#5 term minimum[1] 308597 10339
+
+``` 
+
+
+## Topic proportions over time{-}
+
+We examine topics in the data over time by aggregating mean topic proportions per decade. These aggregated topic proportions can then be visualized, e.g. as a bar plot. 
+
+
+```{r}
+# append decade information for aggregation
+textdata$decade <- paste0(substr(textdata$year, 0, 3), "0")
+```
+
+Articles per decade
+
+```{r}
+#install.packages("formattable")
+articles_decades <- textdata %>% 
+  distinct(doc_id, .keep_all=TRUE) %>% 
+  count(decade) %>% 
+  mutate(pct_total= (n/sum(n))) %>% 
+  mutate(pct_total= formattable::percent(pct_total)) %>% 
+  # mutate(pct_total = round(pct_total, 1)) %>% 
+  arrange(desc(decade))
+
+library(kableExtra)
+articles_decades %>%
+  kbl(caption = "LOC Lynching Articles by Decade (n=11,223, 6/23/2024)", font_size = 30) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>% 
+  column_spec(1, bold = T, border_right = T) %>%
+  column_spec(2, width = "5em") %>% 
+  column_spec(3, width = "5em", background = "yellow") 
+
+
+
+#Fact check 308597 rows tabulated
+#sum(articles_decades$n)
+```
+
+
+```{r tm12}
+# number of topics
+# K <- 20
+K <- 6
+# set random number generator seed
+set.seed(9161)
+#Latent Dirichlet Allocation, LDA
+topicModel2 <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+tmResult <- posterior(topicModel2)
+theta <- tmResult$topics
+beta <- tmResult$terms
+topicNames <- apply(terms(topicModel2, 10), 2, paste, collapse = " ")  # reset topicnames
+```
+# Mean topic proportions per decade
+
+```{r}
+# Step 1: Check dimensions
+n_theta <- nrow(theta)
+n_textdata <- length(textdata$decade)
+
+cat("Number of rows in theta: ", n_theta, "\n")
+cat("Number of documents in textdata: ", n_textdata, "\n")
+
+# Check if textdata contains all the documents in theta
+common_ids <- intersect(rownames(theta), textdata$doc_id) # Assuming textdata has a 'doc_id' column
+
+# Filter textdata to include only the documents present in theta
+textdata_filtered <- textdata[textdata$doc_id %in% common_ids, ]
+
+# Check dimensions after filtering
+n_textdata_filtered <- nrow(textdata_filtered)
+cat("Number of documents in filtered textdata: ", n_textdata_filtered, "\n")
+
+# Ensure the lengths match now
+if (n_theta != n_textdata_filtered) {
+  stop("The number of rows in 'theta' still does not match the length of 'textdata_filtered$decade'.")
+}
+
+# Align rownames of theta with filtered textdata
+theta_aligned <- theta[rownames(theta) %in% textdata_filtered$doc_id, ]
+
+# Optional: Verify the order of documents
+if (!all(rownames(theta_aligned) == textdata_filtered$doc_id)) {
+  # If the order doesn't match, reorder one to match the other
+  textdata_filtered <- textdata_filtered[match(rownames(theta_aligned), textdata_filtered$doc_id), ]
+}
+
+# Ensure they are now aligned and can be combined
+if (!all(rownames(theta_aligned) == textdata_filtered$doc_id)) {
+  stop("The document IDs still do not match. Please check the data alignment.")
+}
+
+# Step 2: Combine data
+topic_data <- data.frame(theta_aligned, decade = textdata_filtered$decade)
+
+# Step 3: Aggregate data
+topic_proportion_per_decade <- aggregate(. ~ decade, data = topic_data, FUN = mean)
+
+
+# get mean topic proportions per decade
+# topic_proportion_per_decade <- aggregate(theta, by = list(decade = textdata$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade)[2:(K+1)] <- topicNames
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_decade, id.vars = "decade")
+
+# #filter out 1960 - one article
+vizDataFrame <- vizDataFrame %>% 
+   filter(!decade==1960)
+```
+
+
+```{r}
+
+#add categories
+#Updated June 27. See notes: https://docs.google.com/document/d/1BvYAye_8biVUaJchm1PB1Z0hrycBvdX0jBwlB38xKsc/edit
+vizDataFrame <- vizDataFrame %>% 
+  mutate(category = case_when(
+    str_detect(variable, "lynch mob negro men jail hang murder law prison made") ~ "lynch_act",
+    str_detect(variable, "law peopl crime race great south lynch countri good public") ~ "critizing_lynching",
+    str_detect(variable, "bodi shot fire hang hous jail tree found door head") ~ "lynch_mob",
+    str_detect(variable, "negro white murder man year kill lynch charg assault mrs") ~ "lynching_violence",
         #check this
-    str_detect(variable, "state court law governor juri order case unit judg offic") ~ "legal_proceedings",
-      #check this
-    str_detect(variable,  "counti night jail citi morn day sheriff mile town clock") ~ "unknown_mob_gathering?",
+    str_detect(variable, "state court juri governor case unit judg call trial investig") ~ "legal_proceedings",
+    str_detect(variable,  "counti sheriff night jail citi morn day deputi mile town") ~ "lynchings",
   ))
+
+
+vizDataFrame_white_black <- vizDataFrame
 
 
 ```
@@ -266,38 +538,79 @@ vizDataFrame <- vizDataFrame %>%
 5) Rinse and repeat....
 
 Here are the topics:
-1: lynch law: lynch mob negro murder crime law men hang attempt made	
-2: unclear_topic: peopl south great race countri american good state public excit
-3: lynch_mob: bodi men jail mob fire hang crowd shot tree hous
-4: lynching_violence: negro white man kill murder year assault mrs woman charg
+Topic 1: lynching violence - "negro white murder man year kill lynch charg assault mrs"          
+Topic 2: lynch-mob - "bodi shot fire hang hous jail tree found door head"  
+Topic 3: lynchings - "counti sheriff night jail citi morn day deputi mile town"
+Topic 4: lynch act - "lynch mob negro men jail hang murder law prison made"
 #check this
-5: legal proceedings: state court law governor juri order case unit judg offic
-6: lynchings: counti night jail citi morn day sheriff mile town clock
+Topic 5: criticizing lynching - "law peopl crime race great south lynch countri good public"
+Topic 6: legal proceedings? - "state court juri governor case unit judg call trial investig" 
 
-
-
-Cut after fc - previous topics
-Topic 1: "lynch_mob" - "law lynch mob crime peopl state man murder men citizen" 
-Topic 2: "lynch_mob2" - "mob crowd men jail man door street made shot rope" 
-Topic 3: "legal_issues" - "lynch mob state court counti prison governor juri sheriff trial"
-Topic 4: "cause_of_lynching" - "negro lynch mob white murder jail kill hang assault shot"
-Topic 5: "misc_lynching" - "negro lynch white worker nation unit state south organ american"
-Topic 6: "female_victim" - "man murder year wife home girl time day found night" 
-
-#For lynchings
+#for legal proceedings?
 ```{r}
-lynchings_topic <- theta2 %>% 
+#for topic 1, lynch mob
+theta2 <- as.data.frame(theta)
+
+legal<- theta2 %>% 
   #renaming for a general topic
-  rename(lynchings = '6') %>% 
-  top_n(20, lynchings) %>%
-  arrange(desc(lynchings)) %>% 
-  select(lynchings)
+  rename(legal = '6') %>% 
+  top_n(20, legal) %>%
+  arrange(desc(legal)) %>% 
+  select(legal)
 
 # Apply rownames_to_column
-lynchings_topic <- tibble::rownames_to_column(lynchings_topic, "story_id") 
+legal <- tibble::rownames_to_column(legal, "story_id") 
 
-#Checks out June 21
-#no particular pattern seen in the top articles.
+legal$story_id <- gsub("X", "", legal$story_id)
+
+#Checks out June 23
+
+
+```
+
+
+#for critizing_lynching
+```{r}
+#for topic 1, lynch mob
+theta2 <- as.data.frame(theta)
+
+critizing<- theta2 %>% 
+  #renaming for a general topic
+  rename(critizing = '5') %>% 
+  top_n(20, critizing) %>%
+  arrange(desc(critizing)) %>% 
+  select(critizing)
+
+# Apply rownames_to_column
+critizing <- tibble::rownames_to_column(critizing, "story_id") 
+
+critizing$story_id <- gsub("X", "", critizing$story_id)
+
+#Checks out June 23
+
+
+```
+
+
+### For lynchings
+```{r}
+#for topic 1, lynch mob
+theta2 <- as.data.frame(theta)
+
+lynchings <- theta2 %>% 
+  #renaming for a general topic
+  rename(law_enforcement = '3') %>% 
+  top_n(20, law_enforcement) %>%
+  arrange(desc(law_enforcement)) %>% 
+  select(law_enforcement)
+
+# Apply rownames_to_column
+lynchings <- tibble::rownames_to_column(lynchings, "story_id") 
+
+lynchings$story_id <- gsub("X", "", lynchings$story_id)
+
+#Checks out June 23
+
 
 ```
 
@@ -384,7 +697,7 @@ sapply(filestocopy, function(x) file.copy(from=x, to=targetdir, copy.mode = TRUE
 
 
 
-#Figure 15 mainstrean_topics_june27.png
+#Figure 15: mainstrean_topics_june23_2024
 
 ```{r}
 # plot topic proportions per decade as bar plot
@@ -403,11 +716,10 @@ ggplot(vizDataFrame, aes(x=decade, y=value, fill=category)) +
    #                           #"gray",
    #                           #"orange")) +
   labs(title = "Common Narratives in Lynching News Coverage",
-       subtitle = "Six Probable Topics in 1,387 extracted articles",
-       caption = "Aggregate mean topic proportions per decade. Graphic by (redated - peer review) & (redated - peer review), 6-27-2023")
+       subtitle = "Six Probable Topics in 9,589 extracted articles",
+       caption = "Aggregate mean topic proportions per decade. Graphic by (redated - peer review) & (redated - peer review), 6-23-2024")
 
-#ggsave("../output/mainstrean_topics_june27.png",device = "png",width=9,height=6, dpi=2000) 
-
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_15_mainstrean_topics_june23_2024.png"),device = "png",width=9,height=6, dpi=800)
 ```
 
 We sort topics according to their probability within the entire collection:
