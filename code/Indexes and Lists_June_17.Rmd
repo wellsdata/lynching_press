@@ -70,9 +70,11 @@ black_press_extracted_text_june_22_2024 <- read_csv("https://osf.io/download/t75
 
 #write.csv(black_press_master_june_22_2024, "../data/blackindex_master_june_18_2024.csv")
 
-black_press_master_june_22_2024 %>% 
+bp <- black_press_master_june_22_2024 %>% 
   count(newspaper_name) %>% 
   arrange(desc(n))
+#75 entries but some need to be cleaned to deal with overlap
+write.csv(bp, "../output_images_tables/bp_newspapers.csv")
 
 ```
 
@@ -83,6 +85,7 @@ black_papers <- read_csv("../data/black_papers.csv") %>%
   rename(newspaper_name = Title) %>% 
   as.data.frame()
 
+#61 separate BP titles
 black_papers <- black_papers %>% 
   mutate(black = "Y")
 
