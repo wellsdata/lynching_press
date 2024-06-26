@@ -1,0 +1,224 @@
+---
+title: "Sampling Lynching Coverage"
+author: "(redacted - peer review)"
+date: "2024-6-19"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+# Sample of Lynching Coverage
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+#install.packages("sampler")
+library(sampler)
+#install.packages("rio")
+library(rio)
+#install.packages("kableExtra")
+#install.packages("formattable")
+library(formattable)
+library(kableExtra)
+library(knitr)
+library(here)
+#install.packages('htmlTable')
+library(htmlTable)
+#install.packages("rempsyc")
+library(rempsyc)
+here::here('/Users/robwells/Code/lynching_press')
+```
+
+Next, we import an index of lynching coverage -- 60,042 pages -- captured by these search terms.
+
+# Import Data
+```{r}
+
+#60,000 Library of Congress articles on lynching captured.
+index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+#metadata for 11,396 articles observed by coding team. 19% of all 60,042 entries in search
+master_article_index_june_26_2024 <- read_csv("https://osf.io/download/fuh3m/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
+  as.data.frame()
+
+# 1650 articles from the black press
+# from master_article_index_6_17 has 11,223 articles
+black_press_master_june_26_2024 <- read_csv("#https://osf.io/download/e84j3/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+```
+
+Index of all Chronicling America coverage.
+
+```{r}
+#1789-1963, 18.1 million rows, all Chroniciling America as of 6/2023
+
+#Due to the file size (1.7gb), you will need to download this file to your hard drive and import it in R from your local machine: https://osf.io/download/3kpqa/?view_only=6c106acd6cb54f6f849e8c6f9098809f
+
+
+index_chron <- rio::import("/Users/YOUR_USER_NAME_HERE/Downloads/chron_am_manifest.csv")
+
+index_chron <- janitor::clean_names(index_chron)
+
+```
+
+
+## Count years for entries 
+```{r}
+#Count years for Chroniciling America 
+chron_count <- index_chron %>% 
+count(year) %>% 
+  mutate(pct = formattable::percent(n/(sum(n)))) %>% 
+  rename(chron_all = n, chron_pct = pct)
+
+#write.csv(chron_count, "../output_images_tables/chronicle_count.csv")
+
+#Count years for all lynching articles captured
+lynch_count <- index %>% 
+  count(year) %>% 
+  mutate(pct = formattable::percent(n/(sum(n)))) %>% 
+  rename(lynch_news = n, lynch_pct = pct)
+
+combolynch_chron <- chron_count %>% 
+  inner_join(lynch_count, by="year")
+
+
+```
+
+
+## Viz total and lynch papers
+```{r}
+
+#Comparing total page count to the pages with lynching news
+
+ggplot(combolynch_chron, aes(x=year)) +
+  geom_line(aes(y= chron_pct), size=2, color = "red") +
+  geom_line(aes(y=(lynch_pct)), size=1, color = "blue") +
+  scale_y_continuous(
+    name = "All Chroniciling America (Red)",
+    sec.axis = sec_axis(~.*1, name="Lynching News in Chron America (Blue)")
+  ) +
+  scale_x_continuous(labels = c(seq(1790, 1960, 10)), breaks = seq(1790, 1960, 10)) +
+  labs(title = "Lynching News to Overall News Coverage, 1789-1963",
+       caption= "Comparing All Chron America to Lynching News in Chron America as Pct of All Coverage.
+       Graphic by (redacted - peer review)",
+       x = "Year")
+
+```
+
+### Comparing the 60,000 search to extracted articles
+## Count years for entries 
+```{r}
+#Count years for extracted articles
+article_count <- master_article_index_june_26_2024 %>% 
+count(year) %>% 
+  mutate(pct = formattable::percent(n/(sum(n)))) %>% 
+  rename(article_all = n, article_pct = pct)
+
+#write.csv(chron_count, "../output_images_tables/chronicle_count.csv")
+
+#Count years for all lynching articles captured
+lynch_count <- index %>% 
+  count(year) %>% 
+  mutate(pct = formattable::percent(n/(sum(n)))) %>% 
+  rename(loc_count = n, loc_pct = pct)
+
+combo_2_lynch_chron <- article_count %>% 
+  inner_join(lynch_count, by="year")
+
+
+```
+
+
+## Viz total and lynch papers
+```{r}
+
+#Comparing total page count to the pages with lynching news
+
+ggplot(combo_2_lynch_chron, aes(x=year)) +
+  geom_line(aes(y= article_pct), size=2, color = "red") +
+  geom_line(aes(y=(loc_pct)), size=1, color = "blue") +
+  scale_y_continuous(
+    name = "Extracted Articles (11,223 articles in LOC) (Red)",
+    sec.axis = sec_axis(~.*1, name="Search Results Chron America (Blue)")
+  ) +
+  scale_x_continuous(labels = c(seq(1805, 1960, 10)), breaks = seq(1805, 1960, 10)) +
+  labs(title = "Extracted Article Sample to Total Search Results, 1805-1963",
+       caption= "Red line is the 19% of lynching articles actually extracted. The blue line is total search for lynching in Chronicling America.
+       Graphic by (redacted - peer review). June 23, 2024",
+       x = "Year")
+
+```
+
+
+
+
+
+
+# Tolnay Beck Bailey Victim Data - Compare Trends with News Coverage
+
+The University of Illinois holds the Tolnay_Bailey_Victim_Data of all known lynching cases from 1882-1929.
+
+\#<https://uofi.app.box.com/s/ffmqd2rjxrdt1tvxl38d/file/110041209555>
+
+There are 2,249 lynching cases in this database, again from 1882-1929
+
+There is also the Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020, probable and confirmed lynchings.
+https://app.box.com/s/99ggc6epn4rdvritke0h/file/992017683748
+
+
+**Below, we compare the frequency of news coverage to the Tolnay victims list.**
+
+```{r}
+
+# This contains tolnay_beck	5871 confirmed and probable	lynchings
+tolnay_beck <- read_csv("https://osf.io/download/vb8wa/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
+  as.data.frame()
+
+tolnay_beck <- janitor::clean_names(tolnay_beck)
+
+
+```
+
+```{r}
+#Cleaning the types of lynchings
+tolnay_beck <- tolnay_beck %>% 
+  mutate(
+    status_clean = str_to_lower(status)) 
+  
+
+tolnay_beck$status_clean <- stringr::str_trim(tolnay_beck$status_clean)
+
+tolnay_beck %>% 
+  count(status_clean) 
+```
+
+
+```{r}
+tolnay_events <- tolnay_beck %>% 
+  select(year, status_clean) %>% 
+group_by(year) %>% 
+  count(status_clean)
+
+tolnay_events %>% 
+  pivot_wider(names_from = status_clean, values_from = n)
+
+
+
+```
+
+
+```{r}
+tolnay_beck %>% 
+count(year) %>% 
+   group_by(year) %>% 
+#Sandwich it onto a simple ggplot
+  ggplot(aes(x = year, y = n, fill = n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  labs(title = "Actual, Threatened Lynchings, 1865-2020", 
+       subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
+       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
+       y="Count",
+       x="Year")
+#Actual, Threatened Lynchings Tolnay 4_14_2023
+```
+
+
