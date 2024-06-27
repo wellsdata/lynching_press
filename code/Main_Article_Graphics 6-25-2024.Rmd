@@ -32,11 +32,6 @@ Next, we import an index of lynching coverage -- 60,042 pages -- captured by the
 master_article_index_june_26_2024 <- read_csv("https://osf.io/download/fuh3m/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
   as.data.frame()
 
-#Index of 11,223 articles of text extracted from 60,000 lynching articles: 18.7% of all 60,042 search captured
-
-index2 <- read_csv("https://osf.io/download/hzyw6/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
-  as.data.frame()
-
 #60,042 Library of Congress articles on lynching captured.
 index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
@@ -504,6 +499,8 @@ combo2 <- combo2 %>%
   rename(news_total = total.x, news_pct = pct_total.x, lynch_total = total.y, lynch_pct = pct_total.y) %>% 
   mutate(gap = news_pct - lynch_pct) %>% 
   mutate(ratio = news_total/lynch_total)
+
+# write.csv(combo2, "../output_images_tables/news_lynching_combo2_june27_2024.csv")
 
 #plot it
 pl <- ggplot(data = combo2, aes(x = year))
