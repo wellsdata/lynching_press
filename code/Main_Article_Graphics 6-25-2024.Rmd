@@ -512,6 +512,8 @@ combo2 <- combo2 %>%
   mutate(gap = news_pct - lynch_pct) %>% 
   mutate(ratio = news_total/lynch_total)
 
+# write.csv(combo2, "../output_images_tables/news_lynching_combo2_june27_2024.csv")
+
 #plot it
 pl <- ggplot(data = combo2, aes(x = year))
 pl <- pl + geom_line(aes(y=lynch_pct), colour = "blue")
