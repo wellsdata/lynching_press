@@ -32,11 +32,6 @@ Next, we import an index of lynching coverage -- 60,042 pages -- captured by the
 master_article_index_june_26_2024 <- read_csv("https://osf.io/download/fuh3m/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
   as.data.frame()
 
-#Index of 11,223 articles of text extracted from 60,000 lynching articles: 18.7% of all 60,042 search captured
-
-index2 <- read_csv("https://osf.io/download/hzyw6/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
-  as.data.frame()
-
 #60,042 Library of Congress articles on lynching captured.
 index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
@@ -110,6 +105,15 @@ count(year) %>%
 ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_1_coverage_year_6_26_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 ```
+
+```{r}
+#count with pct total
+count_year <- master_article_index_june_26_2024 %>% 
+  count(year) %>% 
+  mutate(pct = formattable::percent(n/sum(n),1)) 
+  
+```
+
 
 Here is the list of all newspapers we captured. I'm just supplying the top 20 results.
 ### Total by newspaper
@@ -435,6 +439,7 @@ img <- grid::rasterGrob(png::readPNG(img_file), interpolate = TRUE)
 ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), dpi = 800, width = 10, height = 10)
 ```
 
+# Figure 4: Lynching Totals graphic over time
 ```{r}
 tolnay_beck %>% 
 count(year) %>% 
@@ -443,12 +448,14 @@ count(year) %>%
   ggplot(aes(x = year, y = n, fill = n)) +
   geom_col(position = "dodge") + 
   theme(legend.position = "none") +
+  scale_x_continuous(labels = c(seq(1860, 2020, 10)), breaks = seq(1860, 2020, 10)) +
   labs(title = "Actual, Threatened Lynchings, 1865-2020", 
        subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
        caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
        y="Count",
        x="Year")
 #Actual, Threatened Lynchings Tolnay 4_14_2023
+ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_6_27_2024.png", dpi = 800, width = 10, height = 10)
 ```
 
 
