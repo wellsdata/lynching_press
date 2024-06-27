@@ -573,6 +573,41 @@ onlybptext <- extracted_text_june_22_2024 %>%
 
 ```
 
+
+```{r}
+#graph distribution of white press by year
+white_lynch %>% 
+  count(year) %>% 
+   ggplot(aes(x = year, y = n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  scale_x_continuous(labels = c(seq(1860, 1970, 10)), breaks = seq(1860, 1970, 10)) +
+  labs(title = "White newspaper articles",
+       subtitle = "Based in  9589 extracted articles, 1805-1963",
+       caption = "Graphic by (redacted - peer review), 6-27-2024",
+       y="number",
+       x="year")
+
+
+```
+
+```{r}
+#graph distribution of bp press by year
+black_press_master_june_26_2024 %>% 
+  count(year) %>% 
+   ggplot(aes(x = year, y = n)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  scale_x_continuous(labels = c(seq(1850, 2000, 10)), breaks = seq(1850, 2000, 10)) +
+  labs(title = "Black newspaper articles",
+       subtitle = "Based in 1650 extracted articles, 1805-1963",
+       caption = "Graphic by (redacted - peer review), 6-27-2024",
+       y="number",
+       x="year")
+
+
+```
+
 ### Building lynch DF - All Stories: Count words by story
 ```{r}
 xxx <- stringi::stri_count_words(extracted_text_june_22_2024$sentence, "\\w+") %>%

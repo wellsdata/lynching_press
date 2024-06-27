@@ -72,7 +72,7 @@ lynch1 <- lynch %>%
 black_press_master_june_26_2024 <- master_article_index_june_26_2024 %>% 
   filter(black_press =="Y")
 
-or
+
 # black_press_master_june_26_2024 <- read_csv("#https://osf.io/download/e84j3/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
 black_press_extracted_text_june_22_2024 <- read_csv("https://osf.io/download/t75k2/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
@@ -82,7 +82,6 @@ black_press_extracted_text_june_22_2024 <- read_csv("https://osf.io/download/t75
 bp <- black_press_master_june_26_2024 %>% 
   count(newspaper_name) %>% 
   arrange(desc(n))
-#75 entries but some need to be cleaned to deal with overlap
 #write.csv(bp, "../output_images_tables/bp_newspapers.csv")
 
 ```
