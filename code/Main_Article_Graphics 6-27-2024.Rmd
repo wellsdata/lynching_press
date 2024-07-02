@@ -1,11 +1,14 @@
 ---
 title: "Main Article Graphics"
-author: "(redacted for peer review"
+author: "(redacted for peer review)"
 date: "2024-06-25"
 output:
   word_document: default
   pdf_document: default
 ---
+
+
+Anonymized data and code stored at OSF: https://osf.io/7kpr4/?view_only=6c106acd6cb54f6f849e8c6f9098809f
 
 This notebook has the code for many graphics (or links to them) for "Lynching and the Press, 1805-1963."	
 
@@ -884,23 +887,73 @@ pageplacement %>%
 
 
 
-#Figure 10: Mob coverage, characterization. Click here for interactive version. https://datawrapper.dwcdn.net/fm9BS/7/
-Kushboo graphic.
-https://datawrapper.dwcdn.net/fm9BS/7/
-https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
-https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+# Figure 10: Mob coverage, characterization by decade Analyzing by Decade
+# Figure 12: Newspaper, lynch mobs and justice narrative. 
+```{r}
+# install.packages("readxl")
+library(readxl)
+
+#Downloads sample of 3,225 articles manually coded by a team of undergraduate researchers, Fall 2023.
+# URL to download the Excel file
+excel_url <- "https://osf.io/download/zu4hk/?view_only=6c106acd6cb54f6f849e8c6f9098809f"
+
+# File path where you want to save the downloaded Excel file
+downloaded_file <- "all_mob_connected.xlsx"
+
+# Download the Excel file to your local machine
+download.file(url = excel_url, destfile = downloaded_file, mode = "wb")
+
+# Read the Excel file into a dataframe
+all_mob_connected <- read_excel(downloaded_file, sheet = "all_mob_connected")
+
+# all_mob_connected <- read_sheet("https://docs.google.com/spreadsheets/d/1XG2um-mkZ0ta6kikMuQucydNOPV2POrWLPtxRTuBh0o/edit#gid=0", sheet = "all_mob_connected")
+
+
+decade_trends <- all_mob_connected %>% 
+  filter(!is.na(decade)) %>% 
+  group_by(decade) %>% 
+  summarize(
+    hostile = sum(hostile),
+    orderly = sum(orderly),
+    neutral = sum(neutral),
+    justice = sum(justice),
+    identified = sum(identified),
+    total = n(),
+    percent_hostile = round(hostile/total*100,2),
+    percent_orderly = round(orderly/total*100,2),
+    percent_neutral = round(neutral/total*100,2),
+    percent_justice = round(justice/total*100,2),
+    percent_identified = round(identified/total*100,2)
+  )
+
+write_csv(decade_trends, "../output_images_tables/mob_decade_trends.csv")
+
+```
+
+
+# Figure 13: Regional trends lynching and justice. 
+```{r}
+regional_trends <- all_mob_connected %>% 
+  filter(!is.na(newspaper_region)) %>% 
+  group_by(newspaper_region) %>% 
+  summarize(
+    hostile = sum(hostile),
+    orderly = sum(orderly),
+    neutral = sum(neutral),
+    justice = sum(justice),
+    identified = sum(identified),
+    total = n(),
+    percent_hostile = round(hostile/total*100,2),
+    percent_orderly = round(orderly/total*100,2),
+    percent_neutral = round(neutral/total*100,2),
+    percent_justice = round(justice/total*100,2),
+    percent_identified = round(identified/total*100,2)
+  )
+
+write_csv(regional_trends, "../output_images_tables/mob_regional_trends.csv")
+```
 
 #Figure 11: Lynching Expected. (1902, July 23). Alexandria Gazette. 
-
-#Figure 12: Newspaper, lynch mobs and justice narrative. Click here for interactive version. https://datawrapper.dwcdn.net/5zp1f/3/
-https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
-decade_percents_Justice
-https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
-
-#Figure 13: 'Lynching as justice' least likely in Northeast newspapers.
-https://datawrapper.dwcdn.net/GJ6s9/4/
-https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
-https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
 
 #Figure 14: Common narratives in Black press coverage of lynching
 in Black Papers Topic Modeling, 3_16_2023.rmd
@@ -910,7 +963,82 @@ in Black Papers Topic Modeling, 3_16_2023.rmd
 in Mainstream Papers topic Modeling.rmd, Line 224
 /Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Mainstream Papers Topic Modeling.Rmd
 
-#Figure 16: Common two-word phrases in Black, white press by decade, 1900-1930s. Interactive graphic has details: https://infogram.com/group-3-combined-press-word-cloud-1h1749vp70lml6z. Graphic by Hannah Ziegler
+#Figure 16: Common two-word phrases in Black, white press by decade, 1900-1930s. 
+
+### See Bigrams_7_2_2024.rmd for details on how the bigrams were created
+
+```{r}
+
+black_bigrams <- read_csv("https://osf.io/download/5wjzk/?view_only=6c106acd6cb54f6f849e8c6f9098809f") 
+
+
+black_bigrams %>%
+  filter(n >= 5) %>%
+  filter(decade == "1930s") %>% 
+  filter(str_detect(word1, 'mob') & str_detect(word2, 'violence'))
+
+
+black_bigrams %>%
+  filter(n >= 5) %>%
+  filter(str_detect(word1, 'anti') & str_detect(word2, 'lynching'))
+
+black_bigrams <- black_bigrams %>%
+  na.omit()
+
+bigrams_for_viz <- black_bigrams %>%
+  mutate(black_bigrams, x = paste(word1, word2)) 
+
+# comparing to the white press
+
+white_bigrams <- read_csv("https://osf.io/download/w6ysu/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+white_bigrams %>%
+  filter(str_detect(word1, 'jim') & str_detect(word2, 'crow'))
+
+white_bigrams %>%
+  filter(str_detect(word1, 'civil') & str_detect(word2, 'rights'))
+
+white_bigrams %>%
+  filter(decade == "1930") %>%
+  filter(str_detect(word1, 'anti') & str_detect(word2, 'lynching'))
+
+white_bigrams_for_viz <- white_bigrams %>%
+  mutate(white_bigrams, x = paste(word1, word2)) 
+
+white_bigrams %>%
+  filter(n >= 5) %>%
+  filter(decade == "1930") %>%
+  filter(str_detect(word1, 'mob') & str_detect(word2, 'violence'))
+
+black_bigrams %>%
+  filter(decade == '1910s')
+
+black_bigrams %>%
+  filter(decade == '1920s')
+
+black_bigrams %>%
+  filter(decade == '1930s')
+
+black_bigrams %>%
+  filter(decade == '1940s')
+
+white_bigrams %>%
+  filter(str_detect(word1, 'mob') & str_detect(word2, 'violence'))
+
+black_bigrams %>%
+  filter(str_detect(word1, 'jim') & str_detect(word2, 'crow'))
+
+white_bigrams %>%
+  filter(str_detect(word1, 'anti') & str_detect(word2, 'lynching'))
+
+black_bigrams %>%
+  filter(decade == "1930s") %>%
+  filter(str_detect(word1, 'anti') & str_detect(word2, 'lynching'))
+
+black_bigrams %>%
+  filter(str_detect(word1, 'civil') & str_detect(word2, 'rights'))
+
+```
 
 #Figure 17: The Appeal, St. Paul, Minn., Oct. 15, 1904. Pg. 2
 

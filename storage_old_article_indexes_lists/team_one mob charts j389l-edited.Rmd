@@ -1,0 +1,168 @@
+---
+title: "team one mob charts j389l"
+author: "Khushboo Rathore"
+date: "2023-09-20"
+output: html_document
+---
+
+```{r}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "YOUR KEY HERE")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+#install.packages("tigris")
+#install.packages("zoo")
+library(tigris)
+library(stringr)
+library(janitor)
+library(zoo)
+library(lubridate)
+
+```
+
+
+# FINAL PROJECT MOB ANALYSIS
+
+
+### Figure 10: Mob coverage, characterization by decade Analyzing by Decade
+### Figure 12: Newspaper, lynch mobs and justice narrative. 
+```{r}
+# install.packages("readxl")
+library(readxl)
+
+# URL to download the Excel file
+excel_url <- "https://osf.io/download/zu4hk/?view_only=6c106acd6cb54f6f849e8c6f9098809f"
+
+# File path where you want to save the downloaded Excel file
+downloaded_file <- "all_mob_connected.xlsx"
+
+# Download the Excel file to your local machine
+download.file(url = excel_url, destfile = downloaded_file, mode = "wb")
+
+# Read the Excel file into a dataframe
+all_mob_connected <- read_excel(downloaded_file, sheet = "all_mob_connected")
+
+# all_mob_connected <- read_sheet("https://docs.google.com/spreadsheets/d/1XG2um-mkZ0ta6kikMuQucydNOPV2POrWLPtxRTuBh0o/edit#gid=0", sheet = "all_mob_connected")
+
+
+decade_trends <- all_mob_connected %>% 
+  filter(!is.na(decade)) %>% 
+  group_by(decade) %>% 
+  summarize(
+    hostile = sum(hostile),
+    orderly = sum(orderly),
+    neutral = sum(neutral),
+    justice = sum(justice),
+    identified = sum(identified),
+    total = n(),
+    percent_hostile = round(hostile/total*100,2),
+    percent_orderly = round(orderly/total*100,2),
+    percent_neutral = round(neutral/total*100,2),
+    percent_justice = round(justice/total*100,2),
+    percent_identified = round(identified/total*100,2)
+  )
+
+write_csv(decade_trends, "../output_images_tables/mob_decade_trends.csv")
+
+```
+
+
+Click here for interactive version. https://datawrapper.dwcdn.net/fm9BS/7/
+Kushboo graphic.
+https://datawrapper.dwcdn.net/fm9BS/7/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+
+## Analyzing by Region
+### Figure 13: Regional trends lynching and justice. 
+```{r}
+regional_trends <- all_mob_connected %>% 
+  filter(!is.na(newspaper_region)) %>% 
+  group_by(newspaper_region) %>% 
+  summarize(
+    hostile = sum(hostile),
+    orderly = sum(orderly),
+    neutral = sum(neutral),
+    justice = sum(justice),
+    identified = sum(identified),
+    total = n(),
+    percent_hostile = round(hostile/total*100,2),
+    percent_orderly = round(orderly/total*100,2),
+    percent_neutral = round(neutral/total*100,2),
+    percent_justice = round(justice/total*100,2),
+    percent_identified = round(identified/total*100,2)
+  )
+
+write_csv(regional_trends, "../output_images_tables/mob_regional_trends.csv")
+```
+#Figure 12: Newspaper, lynch mobs and justice narrative. Click here for interactive version. https://datawrapper.dwcdn.net/5zp1f/3/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+decade_percents_Justice
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+#Figure 13: 'Lynching as justice' least likely in Northeast newspapers.
+https://datawrapper.dwcdn.net/GJ6s9/4/
+https://docs.google.com/spreadsheets/d/1v6uE0owA1DLjOxOVlRs4ijFleYtH87Y-VrDOGPqNOps/edit#gid=157809296
+https://docs.google.com/document/d/1QrW9yvVlTMphAVpUwk3Glh5izoaY2Q5GthwjsRcG6m4/edit
+
+
+## Analyzing by State
+```{r}
+state_trends <- all_mob_connected %>% 
+  filter(!is.na(newspaper_state_clean)) %>% 
+  group_by(newspaper_state_clean) %>% 
+  summarize(
+    hostile = sum(hostile),
+    orderly = sum(orderly),
+    neutral = sum(neutral),
+    justice = sum(justice),
+    identified = sum(identified),
+    total = n(),
+    percent_hostile = round(hostile/total*100,2),
+    percent_orderly = round(orderly/total*100,2),
+    percent_neutral = round(neutral/total*100,2),
+    percent_justice = round(justice/total*100,2),
+    percent_identified = round(identified/total*100,2)
+  )
+  
+write_sheet(state_trends, "https://docs.google.com/spreadsheets/d/1XG2um-mkZ0ta6kikMuQucydNOPV2POrWLPtxRTuBh0o/edit#gid=0", sheet = "state_trends")
+```
+
+## Co-Occurences of Hostile, Justice and Orderly
+```{r}
+all_occurrences <- nrow(all_mob_connected)
+
+cooccurrence_table <- all_mob_connected %>% 
+  group_by(hostile, justice, orderly, neutral) %>% 
+  count() %>% 
+  mutate(named = case_when(
+    hostile == 1 & justice == 1 & orderly == 1 & neutral == 1 ~ "all",
+    hostile == 1 & justice == 1 & orderly == 1 ~ "hostile, justice, orderly",
+    hostile == 1 & orderly == 1 & neutral == 1 ~ "hostile, orderly, neutral",
+    orderly == 1 & justice == 1 & neutral == 1 ~ "oderly, justice, neutral",
+    hostile == 1 & justice == 1 & neutral == 1 ~ "hostile, justice, neutral",
+    justice == 1 & neutral == 1 ~ "justice, neutral",
+    orderly == 1 & neutral == 1 ~ "orderly, neutral",
+    justice == 1 & orderly == 1 ~ "justice, orderly",
+    justice == 1 & hostile == 1 ~ "justice, hostile",
+    orderly == 1 & hostile == 1 ~ "orderly, hostile",
+    hostile == 1 & neutral == 1 ~ "hostile, neutral",
+    orderly == 0 & justice == 0 & hostile == 0 & neutral == 0 ~ "none"
+  )) %>% 
+  filter(!is.na(named)) %>% 
+  ungroup() %>% 
+  select(named, n) %>% 
+  mutate(percent_occurrences = round(n/all_occurrences*100,2))
+
+write_sheet(cooccurrence_table, "https://docs.google.com/spreadsheets/d/1XG2um-mkZ0ta6kikMuQucydNOPV2POrWLPtxRTuBh0o/edit#gid=0", sheet = "co_occurrences")
+
+```
+
+
