@@ -957,11 +957,10 @@ write_csv(regional_trends, "../output_images_tables/mob_regional_trends.csv")
 
 #Figure 14: Common narratives in Black press coverage of lynching
 in Black Papers Topic Modeling, 3_16_2023.rmd
-/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Black Papers Topic Modeling_3_16_2023.Rmd
 
 #Figure 15 mainstrean_topics_june27.png
 in Mainstream Papers topic Modeling.rmd, Line 224
-/Users/robwells/Code/hcij_lynching_phase_two/narratives/code/Mainstream Papers Topic Modeling.Rmd
+
 
 #Figure 16: Common two-word phrases in Black, white press by decade, 1900-1930s. 
 
@@ -990,10 +989,55 @@ bigrams_for_viz <- black_bigrams %>%
 
 # comparing to the white press
 
-white_bigrams <- read_csv("https://osf.io/download/w6ysu/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+white_bigrams <- read_csv("https://osf.io/download/w6ysu/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
+  as.data.frame()
 
-white_bigrams %>%
-  filter(str_detect(word1, 'jim') & str_detect(word2, 'crow'))
+
+jim_crow_count <- white_bigrams %>%
+  filter(str_detect(word1, 'jim') & str_detect(word2, 'crow')) %>% 
+  ungroup()
+
+jim_crow_total <- jim_crow_count %>%
+  summarize(total_jim_crow = sum(n))
+
+
+# Calculate the total occurrences of all bigrams
+total_bigrams <- white_bigrams %>%
+  summarize(total_bigrams = sum(n))
+
+# Calculate the percentage
+per_10000_jim_crow <- (jim_crow_total$total_jim_crow / total_bigrams$total_bigrams) * 10000
+
+# Print the result
+per_10000_jim_crow
+#Jim Crow was .72 per 100000 white bigrams
+
+
+#for bp
+bp_jim_crow_count <- black_bigrams %>%
+  filter(str_detect(word1, 'jim') & str_detect(word2, 'crow')) %>% 
+  ungroup()
+
+bp_jim_crow_total <- bp_jim_crow_count %>%
+  summarize(total_jim_crow = sum(n))
+
+
+# Calculate the total occurrences of all bigrams
+bp_total_bigrams <- black_bigrams %>%
+  summarize(total_bigrams = sum(n))
+
+# Calculate the percentage
+bp_percent_10000_jim_crow <- (bp_jim_crow_total$total_jim_crow / bp_total_bigrams$total_bigrams) * 100
+
+bp_per_10000_jim_crow 
+
+#6.3 per 10,000 phrases
+
+6.3/.72
+
+#jim crow was 8.75 times more frequent in Black press than white press
+```
+
 
 white_bigrams %>%
   filter(str_detect(word1, 'civil') & str_detect(word2, 'rights'))
