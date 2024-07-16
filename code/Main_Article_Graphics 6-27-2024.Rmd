@@ -71,6 +71,7 @@ sample_decade <- x %>%
   add_header_above(c("LOC Lynching Articles by Decade, n=60,042" = 3)) %>% 
   save_kable("../output_images_tables/sample_decade_6_26_2024.png")
 
+#See at OSF: https://osf.io/download/mpydr/?view_only=None
 
 #Fact check
 #sum(x$nh)
@@ -1172,6 +1173,15 @@ black_word_decade %>%
 
 ```
 
+# Regular Expression Search Terms
+
+Here is the list and formatting of regular expression terms used to search the Chronicling America API.
+
+```{r}
+
+"lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_num_matches    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_num_matches    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_num_matches    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_num_matches    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_num_matches    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_num_matches    Unnamed: 0    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_start_idx    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_end_idx    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_cost    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_SEARCH_cost_threshold    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_start_idx    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_end_idx    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_cost    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_SEARCH_cost_threshold    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_start_idx    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_end_idx    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_cost    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_SEARCH_cost_threshold    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_start_idx    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_end_idx    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_cost    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_SEARCH_cost_threshold    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_start_idx    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_end_idx    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_cost    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_start_idx    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_end_idx    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_cost    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_SEARCH_cost_threshold    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_SEARCH_cost_threshold    batch    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_CLEANING_cost_threshold    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_CLEANING_cost_threshold    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_CLEANING_cost_threshold    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_CLEANING_cost_threshold    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_CLEANING_cost_threshold    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_CLEANING_cost_threshold    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?colored"_passed_cleaning    "coloreds?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_passed_cleaning    "lynchings?\W+of\W+(the\W+)?((\w+\W+){1,2})?negro"_passed_cleaning    "negro(e?s)?\W+((\w+\W+){1,2})?((was|were)\W+)?lynch(ed|es|ing)?(\W+|$)"_passed_cleaning    "mob\W+((\w+\W+){1,2})?(hung|hang(ed|ings?|s)|lynch(ed|es|ing)?)"_passed_cleaning    "(murderer|fiend|desperado|brute)\W+((\w+\W+){1,2})?lynch(ed|es|ing)?(\W+|$)"_passed_cleaning
+
+```
 
 
 
