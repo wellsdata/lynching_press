@@ -1,7 +1,7 @@
 ---
 title: "Indexes and Lists"
 author: "(redacted for peer review)"
-date: "2024-06-17"
+date: "2024-10-11"
 output: html_document
 ---
 
@@ -31,20 +31,20 @@ library(readtext)
 
 ```
 
-# Master_article_index_6_18
+# Extracted_articles_index_june_22_2024
 June 22 data cleaning and compiling
-master_article_index_6_17 has 11,223 articles
+extracted_articles_index_june_22_2024 has 11,223 articles
 --1633 from the black press
 
 ## Load Data
 ```{r include=FALSE}
-#metadata for 11,396 articles observed by coding team. 19% of all 60,042 entries in search
-master_article_index_june_26_2024 <- read_csv("https://osf.io/download/fuh3m/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
-
-
 #Index of 11,223 articles of text extracted from 60,000 lynching articles: 18.7% of all 60,042 search captured
-extracted_articles_index_june_22_2024 <- read_csv("https://osf.io/download/hzyw6/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
+
+extracted_articles_index_june_22_2024 <- read_csv("https://osf.io/download/z39ku/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
   as.data.frame()
+
+#no longer using master_article_index_june_26_2024 which had 11,396 articles observed by coding team. instead using extracted_articles_index_june_22_2024 with 11,223 articles, about 19% of all 60,042 entries in search
+
 
 #60,042 Library of Congress articles on lynching captured.
 main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
@@ -56,30 +56,44 @@ main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6
 #303184 rows, articles span multiple rows for tokenization
 extracted_text_june_22_2024 <- read_csv("https://osf.io/download/p32he/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-#subset 9589 mainstream white owned paper articles to eliminate Black newspapers
+#subset 9590 mainstream white owned paper articles to eliminate Black newspapers
+
+lynch <- extracted_articles_index_june_22_2024 |> 
+  mutate(black_press = str_squish(black_press)) |> 
+  mutate(black_press = case_when(
+    black_press != "Y" | is.na(black_press) ~ "N",
+    black_press=="Y" ~ "Y",
+    TRUE ~ black_press
+  ))
+
+lynch |> 
+  count(black_press)
+
 lynch1 <- lynch %>% 
-    filter(black_press != "Y" | is.na(black_press))
+    filter(black_press == "N")  
+  
+
 
 ```
 
 
 
 ```{r include=FALSE}
-# 1650 from the black press
-# from master_article_index_6_17 has 11,396 articles
-# June 22 data cleaning and compiling
+# 1633 from the black press
+# from extracted_articles_index_june_22_2024 has 11,223 articles
+# Oct 11 revision
 
-black_press_master_june_26_2024 <- master_article_index_june_26_2024 %>% 
+black_press_master_oct_11_2024 <- extracted_articles_index_june_22_2024 %>% 
   filter(black_press =="Y")
 
-
-# black_press_master_june_26_2024 <- read_csv("#https://osf.io/download/e84j3/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+# write.csv(black_press_master_oct_11_2024, "../data/blackindex_master_oct_11_2024.csv")
+#this was uploaded to OSF as https://osf.io/download/hzd5g/?view_only=6c106acd6cb54f6f849e8c6f9098809f
 
 black_press_extracted_text_june_22_2024 <- read_csv("https://osf.io/download/t75k2/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-#write.csv(black_press_master_june_26_2024, "../data/blackindex_master_june_26_2024.csv")
 
-bp <- black_press_master_june_26_2024 %>% 
+
+bp <- black_press_master_oct_11_2024 %>% 
   count(newspaper_name) %>% 
   arrange(desc(n))
 #write.csv(bp, "../output_images_tables/bp_newspapers.csv")
@@ -101,19 +115,21 @@ black_papers <- black_papers %>%
 
 
 ### Counting the years
+
 ```{r}
-years_6_26 <- master_article_index_june_26_2024 %>% 
+
+years_10_11 <- extracted_articles_index_june_22_2024 %>% 
   count(year) %>% 
   rename(count = n) %>% 
   mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
   arrange(desc(pct_whole)) %>% 
   mutate(rank_new = dense_rank(desc(pct_whole)))
 
-#write.csv(years_6_26, "../output_images_tables/years_of_news_coverage_6_26_2024.csv")
+write.csv(years_10_11, "../output_images_tables/years_of_news_coverage_10_11_2024.csv")
 
 #master_article_index_10_19
 
-old_master_article_index_10.19 <- read.csv("../data/old_article_indexes_lists/master_article_index_10.19.csv")
+old_master_article_index_10.19 <- read.csv("/Users/robwells/Code/lynching_press/storage_old_article_indexes_lists/master_article_index_10.19.csv")
 years_10_19 <- old_master_article_index_10.19 %>% 
   count(year) %>% 
   rename(count = n) %>% 
@@ -126,7 +142,7 @@ years_10_19 <- old_master_article_index_10.19 %>%
 
 
 year_compare <- years_10_19 %>% 
-  inner_join(years_6_18, by="year") %>% 
+  inner_join(years_10_11, by="year") %>% 
   mutate(diff = (count-count_old)) %>% 
   mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
   mutate(pct_chg = round(pct_chg,2))
@@ -147,8 +163,9 @@ year_compare %>%
 
 
 ### Counting the states
+
 ```{r}
-totals_6_18 <- master_article_index_june_26_2024 %>% 
+totals_10_11 <- extracted_articles_index_june_22_2024 %>% 
   count(newspaper_state) %>% 
   rename(count = n) %>% 
   mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
@@ -170,7 +187,7 @@ totals_10_19 <- old_master_article_index_10.19 %>%
 
 
 ```{r}
-compare <- totals_6_18 %>% 
+compare <- totals_10_11 %>% 
   inner_join(totals_10_19, by="newspaper_state") %>% 
   mutate(diff = (count-count_old)) %>% 
   mutate(pct_chg = round(count-count_old)/count_old*100) %>% 
@@ -185,13 +202,13 @@ compare <- totals_6_18 %>%
 ### count of new pre-civil war stories
 
 ```{r}
-#724 pre-civil war articles
+#695 pre-civil war articles
 year_compare %>% 
 filter(year < "1862") %>% 
 summarize(sum(count))
 
 
-#69 new pre-civil war articles extracted.
+#40 new pre-civil war articles extracted.
 year_compare %>% 
 filter(year < "1862") %>% 
 summarize(sum(diff))
@@ -239,6 +256,10 @@ tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>%
 
 tolnay_beck <- janitor::clean_names(tolnay_beck)
 
+```
+```{r}
+tolnay_beck |> 
+  count(status_clean)
 ```
 
 

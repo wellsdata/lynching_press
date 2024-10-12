@@ -31,8 +31,9 @@ Next, we import an index of lynching coverage -- 60,042 pages -- captured by the
 
 # Import Data
 ```{r}
-#metadata for 11,396 articles observed by coding team. 19% of all 60,042 entries in search
-master_article_index_june_26_2024 <- read_csv("https://osf.io/download/fuh3m/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>% 
+#Index of 11,223 articles of text extracted from 60,000 lynching articles: 18.7% of all 60,042 search captured
+
+extracted_articles_index_june_22_2024 <- read_csv("https://osf.io/download/z39ku/?view_only=6c106acd6cb54f6f849e8c6f9098809f") %>%
   as.data.frame()
 
 #60,042 Library of Congress articles on lynching captured.
@@ -89,10 +90,11 @@ x
 
 # Figure 1: Analyzing the Lynching Data
 
+#REDO with extracted articles
 ```{r}
 
 #Here is a chart, Figure 1, that describes lynching search results by year, counting news pages with at least one lynching story in the LOC database.
-count_year <- master_article_index_june_26_2024 %>% 
+count_year <- extracted_articles_index_june_22_2024 %>% 
 count(year) %>% 
    group_by(year) %>% 
 #Sandwich it onto a simple ggplot
@@ -110,9 +112,10 @@ ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_
 
 ```
 
+#REDO with extracted articles
 ```{r}
 #count with pct total
-count_year <- master_article_index_june_26_2024 %>% 
+count_year <- extracted_articles_index_june_22_2024 %>% 
   count(year) %>% 
   mutate(pct = formattable::percent(n/sum(n),1)) 
   
@@ -121,15 +124,15 @@ count_year <- master_article_index_june_26_2024 %>%
 
 Here is the list of all newspapers we captured. I'm just supplying the top 20 results.
 ### Total by newspaper
-
+#REDO with extracted articles
 ```{r}
 
 #Table from Pg. 10 top 10 newspapers
-total_count <- master_article_index_june_26_2024 %>%
+total_count <- extracted_articles_index_june_22_2024 %>%
   count() %>%
   pull(n)
 
-newspaper <- master_article_index_june_26_2024 %>% 
+newspaper <- extracted_articles_index_june_22_2024 %>% 
   select(newspaper_name, newspaper_state) %>% 
    group_by(newspaper_name, newspaper_state) %>% 
    count(name = "n") %>% 
@@ -155,10 +158,10 @@ newspaper_top %>%
 ```
 
 ### Total publications by state
-
+#REDO with extracted articles
 ```{r}
 #total by state
-state <- master_article_index_june_26_2024 %>% 
+state <- extracted_articles_index_june_22_2024 %>% 
 count(newspaper_state) %>% 
    group_by(newspaper_state) %>% 
   ungroup()
@@ -180,10 +183,10 @@ state %>%
 
 
 ### Regional classification for newspaper
-
+#REDO with extracted articles
 ```{r}
 #Classification based on https://www.census.gov/programs-surveys/economic-census/guidance-geographies/levels.html#par_textimage_34
-master_article_index_june_26_2024 <- master_article_index_june_26_2024 %>% 
+extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %>% 
   mutate(region = case_when(newspaper_state=="South Carolina" ~ "South",
                            newspaper_state=="Texas" ~ "South",
                             newspaper_state=="Louisiana" ~ "South",
@@ -238,10 +241,10 @@ master_article_index_june_26_2024 <- master_article_index_june_26_2024 %>%
 
 ```
 
-
+#REDO with extracted articles
 ```{r}
 ### Border Designation
-master_article_index_june_26_2024 <- master_article_index_june_26_2024 %>% 
+extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %>% 
   mutate(border = case_when(newspaper_state=="Maryland" ~ "Border",
                             newspaper_state=="Delaware" ~ "Border",
                             newspaper_state=="West Virginia" ~ "Border",
@@ -253,10 +256,11 @@ master_article_index_june_26_2024 <- master_article_index_june_26_2024 %>%
 
 
 # Figure 2: State-region totals
+#REDO with extracted articles
 ```{r}
 
 #total by region
-region <- master_article_index_june_26_2024 %>% 
+region <- extracted_articles_index_june_22_2024 %>% 
   group_by(region) %>% 
   count() %>% 
   ungroup()
@@ -399,7 +403,9 @@ tolnay_events %>%
 
 ```
 # Figure 3: Lynching Totals, Tolnay & Beck, 2022
+## Fixed 10-11-2024
 ```{r}
+
 tolnay_beck <- tolnay_beck %>% 
   mutate(
     status_clean = case_when(
@@ -411,8 +417,10 @@ tolnay_beck <- tolnay_beck %>%
 tolnay_counts <- tolnay_beck %>% 
   count(status_clean) %>% 
   mutate(pct_total = round(n/5871, 3)) %>% 
-  mutate(pct_total = formattable::percent(pct_total, 1)) 
+  mutate(pct_total = formattable::percent(pct_total, 1)) |> 
+  rename(Category = status_clean, Number = n, Pct_Total = pct_total)  
 
+library(rempsyc)
 nice_table(tolnay_counts, short = TRUE)
 
 library(kableExtra)
@@ -423,7 +431,7 @@ kbl(tolnay_counts) %>%
 
 
 tolnay_graphic <- tolnay_counts %>%
-  arrange(desc(n)) %>% 
+  arrange(desc(Number)) %>% 
   kbl(caption = "Lynching Totals, Tolnay & Beck, 2022", font_size = 30) %>%
   kable_classic(full_width = F, html_font = "Cambria") %>% 
   column_spec(1, bold = T, border_right = T) %>%
@@ -444,8 +452,11 @@ ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf,
 ```
 
 # Figure 4: Lynching Totals graphic over time
+## Fixed 10-11-2024
 ```{r}
+#fixed 10-11-2024
 tolnay_beck %>% 
+  filter(status_clean =="lynching") |> 
 count(year) %>% 
    group_by(year) %>% 
 #Sandwich it onto a simple ggplot
@@ -453,13 +464,26 @@ count(year) %>%
   geom_col(position = "dodge") + 
   theme(legend.position = "none") +
   scale_x_continuous(labels = c(seq(1860, 2020, 10)), breaks = seq(1860, 2020, 10)) +
-  labs(title = "Actual, Threatened Lynchings, 1865-2020", 
-       subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
-       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
+  labs(title = "Actual Lynchings, 1865-2020", 
+       subtitle = "Count of Actual Lynchings. Tolnay-Beck Data",
+       caption = "n=5,039 lynchings. Graphic by (redacted - peer review), 10/11/2024",
        y="Count",
        x="Year")
-#Actual, Threatened Lynchings Tolnay 4_14_2023
-ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_6_27_2024.png", dpi = 800, width = 10, height = 10)
+#Actual Lynchings Tolnay 4_14_2023
+ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_10_11_2024.png", dpi = 800, width = 10, height = 10)
+```
+```{r}
+tolnay_beck %>% 
+  filter(status_clean =="lynching") |> 
+count(year) %>% 
+    summarize(sum(n))
+   group_by(year)
+
+
+tolnay_beck %>% 
+  filter(status_clean =="lynching") |> 
+  count(status_clean) |> 
+  summarize(sum(n))
 ```
 
 
@@ -490,8 +514,9 @@ tolnay_beck_year
 ```
 
 Year Totals - Lynching Articles
+#REDO with extracted articles
 ```{r}
-lynching_year <- master_article_index_june_26_2024 %>% 
+lynching_year <- extracted_articles_index_june_22_2024 %>% 
   group_by(year) %>% 
   count(year) %>% 
   rename(total = n) %>% 
@@ -780,16 +805,16 @@ bp_pages_decade2 <- bp_pages_decade %>%
 ```
 # Figure 9: Page 1 stories by decade
 
-
+#REDO with extracted articles
 ```{r}
 #Using the 11,396 extracted articles, we determine the number of page 1 stories per decade. 
 
-master_article_index_june_26_2024$decade <- paste0(substr(master_article_index_june_26_2024$year, 0, 3), "0")
+extracted_articles_index_june_22_2024$decade <- paste0(substr(extracted_articles_index_june_22_2024$year, 0, 3), "0")
 
-x_master_article_index_june_26_2024 <- master_article_index_june_26_2024 %>% 
+x_extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %>% 
   select(newspaper_name, newspaper_state, sn, year, month, day, decade, edition,page, filepath)
 
-index_pages <- x_master_article_index_june_26_2024 %>% 
+index_pages <- x_extracted_articles_index_june_22_2024 %>% 
   mutate(page_one = ifelse(page > 1, FALSE, TRUE))
 
 pages_decade <- index_pages %>% 
@@ -829,11 +854,12 @@ ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_
 ```
 
 ### All pages by decade
+#REDO with extracted articles
 
 ```{r}
-master_article_index_june_26_2024$decade <- paste0(substr(master_article_index_june_26_2024$year, 0, 3), "0")
+extracted_articles_index_june_22_2024$decade <- paste0(substr(extracted_articles_index_june_22_2024$year, 0, 3), "0")
 
-count_decade <- master_article_index_june_26_2024 %>% 
+count_decade <- extracted_articles_index_june_22_2024 %>% 
   group_by(decade) %>%
   count() %>% 
     ungroup() %>% 
@@ -852,11 +878,11 @@ count_decade <- master_article_index_june_26_2024 %>%
 
 
 ### Black Press Page One analysis
-
+#REDO with extracted articles
 ```{r}
-master_article_index_june_26_2024$decade <- paste0(substr(master_article_index_june_26_2024$year, 0, 3), "0")
+extracted_articles_index_june_22_2024$decade <- paste0(substr(extracted_articles_index_june_22_2024$year, 0, 3), "0")
 
-pageplacement <- master_article_index_june_26_2024 %>% 
+pageplacement <- extracted_articles_index_june_22_2024 %>% 
   # mutate(page = str_replace(page, "seq-", "")) %>% 
   group_by(page) %>% 
   count(page) %>% 

@@ -32,14 +32,12 @@ black_papers <- black_papers %>%
 
 # Black Press index
 ```{r}
-# 1650 from the black press
-# from master_article_index_6_17 has 11,396 articles
-# June 17 data cleaning and compiling
+# 1633 from the black press
+# from extracted_articles_index_june_22_2024 has 11,223 articles
+# Oct 11 data cleaning and compiling
 
-blackindex_master <- read.csv("../data/master_article_index_june_18_2024.csv") %>% 
-  filter(black_press =="Y")
+blackindex_master <- read_csv("https://osf.io/download/hzd5g/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-write.csv(blackindex_master, "../data/blackindex_master_june_18_2024.csv")
 
 ```
 
