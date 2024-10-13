@@ -1,7 +1,7 @@
 ---
 title: "Main Article Graphics"
 author: "(redacted for peer review)"
-date: "2024-06-25"
+date: "2024-10-13"
 output:
   word_document: default
   pdf_document: default
@@ -90,7 +90,7 @@ x
 
 # Figure 1: Analyzing the Lynching Data
 
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 
 #Here is a chart, Figure 1, that describes lynching search results by year, counting news pages with at least one lynching story in the LOC database.
@@ -104,15 +104,15 @@ count(year) %>%
   scale_x_continuous(labels = c(seq(1800, 1960, 10)), breaks = seq(1800, 1960, 10)) +
   labs(title = "Lynching Coverage By Year, 1805-1963", 
        subtitle = "Count of Lynching Stories Examined",
-       caption = "n=11,396 articles. Peak page count: 1903: 482 pages. Graphic by (redacted - peer review), 6/26/2024",
+       caption = "n=11,223  articles. Peak page count: 1903: 482 pages. Graphic by (redacted - peer review), 10/13/2024",
        y="Count of Pages",
        x="Year")
 
-ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_1_coverage_year_6_26_2024.png"),device = "png",width=9,height=6, dpi=800)
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_1_coverage_year_10-13_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 ```
 
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 #count with pct total
 count_year <- extracted_articles_index_june_22_2024 %>% 
@@ -124,7 +124,7 @@ count_year <- extracted_articles_index_june_22_2024 %>%
 
 Here is the list of all newspapers we captured. I'm just supplying the top 20 results.
 ### Total by newspaper
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 
 #Table from Pg. 10 top 10 newspapers
@@ -153,12 +153,12 @@ newspaper_top
 newspaper_top %>%
   kable() %>%
   kable_styling("striped") %>%
-  save_kable("../output_images_tables/top_newspapers_6_26_2024.png")
+  save_kable("../output_images_tables/top_newspapers_10_13_2024.png")
 
 ```
 
 ### Total publications by state
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 #total by state
 state <- extracted_articles_index_june_22_2024 %>% 
@@ -178,12 +178,12 @@ state
 state %>%
   kable() %>%
   kable_styling("striped") %>%
-  save_kable("../output_images_tables/top_states_6_26_2024.png")
+  save_kable("../output_images_tables/top_states_10_13_2024.png")
 ```
 
 
 ### Regional classification for newspaper
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 #Classification based on https://www.census.gov/programs-surveys/economic-census/guidance-geographies/levels.html#par_textimage_34
 extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %>% 
@@ -241,7 +241,7 @@ extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %
 
 ```
 
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 ### Border Designation
 extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %>% 
@@ -256,7 +256,7 @@ extracted_articles_index_june_22_2024 <- extracted_articles_index_june_22_2024 %
 
 
 # Figure 2: State-region totals
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 
 #total by region
@@ -284,13 +284,13 @@ region %>%
   geom_text(aes(label = scales::percent(pct_total_pages)), size = 4, hjust=.5, vjust=0) + 
   labs(title = "Regional Distribution of Lynching Coverage, 1805-1963", 
        subtitle = "Newspapers by Census Region",
-       caption = "Newspapers by region with lynching coverage. n=11,396 articles. Graphic by (redacted - peer review), 6/26/2024",
+       caption = "Newspapers by region with lynching coverage. n=11,223  articles. Graphic by (redacted - peer review), 10/13/2024",
        y="Pct of Pages",
        x="Region")
 
 
 
-ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_2_regional_coverage_6_26_2024.png"),device = "png",width=9,height=6, dpi=800)
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_2_regional_coverage_10_13_2024.png"),device = "png",width=9,height=6, dpi=800)
 ```
 
 
@@ -306,7 +306,7 @@ There are 2,249 lynching cases in this database, again from 1882-1929
 There is also the Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020, probable and confirmed lynchings.
 https://app.box.com/s/99ggc6epn4rdvritke0h/file/992017683748
 
-**Our newspaper research reaches back much earlier than this dataset.** We have identified news reports of lynching as early as 1789.
+**Our newspaper research reaches back much earlier than this dataset.** 
 
 **Below, we compare the frequency of news coverage to the Tolnay victims list.**
 
@@ -347,7 +347,7 @@ tolnay_beck <- tolnay_beck %>%
       TRUE ~ status_clean
     ))
 
-install.packages('htmlTable')
+#install.packages('htmlTable')
 library(htmlTable)
 
 tolnay_beck$decade <- paste0(substr(tolnay_beck$year, 0, 3), "0")
@@ -472,36 +472,8 @@ count(year) %>%
 #Actual Lynchings Tolnay 4_14_2023
 ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_10_11_2024.png", dpi = 800, width = 10, height = 10)
 ```
-```{r}
-tolnay_beck %>% 
-  filter(status_clean =="lynching") |> 
-count(year) %>% 
-    summarize(sum(n))
-   group_by(year)
 
 
-tolnay_beck %>% 
-  filter(status_clean =="lynching") |> 
-  count(status_clean) |> 
-  summarize(sum(n))
-```
-
-
-```{r}
-tolnay_beck %>% 
-  select(year, status_clean) %>% 
-group_by(year) %>% 
-  count(status_clean) %>% 
-  #Sandwich it onto a simple ggplot
-  ggplot(aes(x = year, y = n, fill = n)) +
-  geom_col(position = "dodge") + 
-  labs(title = "Actual, Threatened Lynchings, 1865-2020", 
-       subtitle = "Count of Actual, Probable Lynchings. Tolnay-Beck Data",
-       caption = "n=5,871 incidents (lynchings = 5,039. Graphic by (redacted - peer review), 4/14/2023",
-       y="Count",
-       x="Year")
-
-```
 
 Year Totals - seguin_tolnay
 ```{r}
@@ -514,13 +486,13 @@ tolnay_beck_year
 ```
 
 Year Totals - Lynching Articles
-#REDO with extracted articles
+#Fixed 10-13-2024
 ```{r}
 lynching_year <- extracted_articles_index_june_22_2024 %>% 
   group_by(year) %>% 
   count(year) %>% 
   rename(total = n) %>% 
-  mutate(pct_total = formattable::percent(total/11396, 3))
+  mutate(pct_total = formattable::percent(total/11223, 3))
 lynching_year
 ```
 
@@ -531,6 +503,7 @@ It shows peak lynching activity between 1884-1895 and a significant drop off aft
 Our newspaper research has broadly similar findings.
 
 # Figure 5: Ida Wells Graphic 
+#Fixed 10-13-2024
 ```{r}
 combo2 <- lynching_year %>% 
   right_join(tolnay_beck_year, by="year") %>% 
@@ -553,14 +526,15 @@ pl <- pl + theme(axis.text.x = element_text(angle=90))
 pl <- pl + labs(x = "Year", y = "Pct of whole")
 pl <- pl + labs(title = "Newspaper Coverage vs Lynchings, 1865-1963", 
         subtitle = "Newspaper Articles (Red) vs. Actual Victims (Blue), pct of whole",
-       caption = "Tolnay_Beck Victims n = 5871. Media n = 11,396 articles. Graphic by (redacted - peer review), 6/26/2024")
+       caption = "Tolnay_Beck Victims n = 5039. Media n = 11,223  articles. Graphic by (redacted - peer review), 10/13/2024")
 
-ggsave("../output_images_tables/Article_Images/Figure_5_ida_graph_6_26_2024.png", device = "png",width=9,height=6, dpi=800)
+ggsave("../output_images_tables/Article_Images/Figure_5_ida_graph_10_13_2024.png", device = "png",width=9,height=6, dpi=800)
 
 pl
 ```
 
-
+#Figure 6: Detail_ida_graph_10_13_2024
+#Fixed 10-13-2024
 ```{r}
 #focus on the change in 1890 - 1920
 combo3 <- combo2 %>% 
@@ -576,9 +550,9 @@ plx <- plx + theme(axis.text.x = element_text(angle=90))
 plx <- plx + labs(x = "Year", y = "Pct of whole")
 plx <- plx + labs(title = "Newspaper Coverage vs Lynchings, 1890-1920", 
         subtitle = "Newspaper Articles (Red) vs. Actual Victims (Blue), pct of whole",
-        caption = "Tolnay_Beck Victims n = 5871. Media n = 11,396 articles. Graphic by (redacted - peer review), 6/26/2024")
+        caption = "Tolnay_Beck Victims n = 5039. Media n = 11,223  articles. Graphic by (redacted - peer review), 10/13/2024")
 
-ggsave("../output_images_tables/Article_Images/Figure_6_detail_ida_graph_6_26_2024.png", device = "png",width=9,height=6, dpi=800)
+ggsave("../output_images_tables/Article_Images/Figure_6_detail_ida_graph_10_13_2024.png", device = "png",width=9,height=6, dpi=800)
 
 plx
 ```
@@ -591,11 +565,11 @@ plx
 #303184 rows, articles span multiple rows for tokenization
 extracted_text_june_22_2024 <- read_csv("https://osf.io/download/p32he/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
-#subset 9589 mainstream white owned paper articles to eliminate Black newspapers
+#subset 9590 mainstream white owned paper articles to eliminate Black newspapers
 white_lynch <- extracted_text_june_22_2024 %>% 
     filter(black_press != "Y" | is.na(black_press))
 
-#subset the 1634 Black press news articles
+#subset the 1633 Black press news articles
 onlybptext <- extracted_text_june_22_2024 %>% 
   filter(black_press == "Y")
 
@@ -612,8 +586,8 @@ white_lynch %>%
   theme(legend.position = "none") +
   scale_x_continuous(labels = c(seq(1860, 1970, 10)), breaks = seq(1860, 1970, 10)) +
   labs(title = "White newspaper articles",
-       subtitle = "Based in  9589 extracted articles, 1805-1963",
-       caption = "Graphic by (redacted - peer review), 6-27-2024",
+       subtitle = "Based in  9590 extracted articles, 1805-1963",
+       caption = "Graphic by (redacted - peer review), 10-13-2024",
        y="number",
        x="year")
 
@@ -622,20 +596,41 @@ white_lynch %>%
 
 ```{r}
 #graph distribution of bp press by year
-black_press_master_june_26_2024 %>% 
+ extracted_articles_index_june_22_2024 |> 
+  filter(black_press =="Y") |> 
   count(year) %>% 
    ggplot(aes(x = year, y = n)) +
   geom_col(position = "dodge") + 
   theme(legend.position = "none") +
   scale_x_continuous(labels = c(seq(1850, 2000, 10)), breaks = seq(1850, 2000, 10)) +
   labs(title = "Black newspaper articles",
-       subtitle = "Based in 1650 extracted articles, 1805-1963",
-       caption = "Graphic by (redacted - peer review), 6-27-2024",
+       subtitle = "Based in 1633 extracted articles, 1805-1963",
+       caption = "Graphic by (redacted - peer review), 10-13-2024",
        y="number",
        x="year")
 
 
 ```
+
+```{r}
+extracted_articles_index_june_22_2024 |> 
+  count(year, black_press) %>% 
+  filter(year < 1970) |> 
+  ggplot(aes(x = year, y = n, fill=black_press)) +
+  geom_col(position = "dodge") + 
+  theme(legend.position = "none") +
+  scale_x_continuous(labels = c(seq(1800, 1970, 10)), breaks = seq(1800, 1970, 10)) +
+  labs(title = "White vs Black newspaper articles",
+       subtitle = "Study sample shows Black papers become significant after 1900",
+       caption = "n=11,223 articles. Graphic by (redacted - peer review), 10-13-2024",
+       y="number",
+       x="year")
+
+```
+
+
+#STOPPED OCT 13 2024
+
 
 ### Building lynch DF - All Stories: Count words by story
 ```{r}
@@ -773,7 +768,7 @@ w_lynch_word_decade <- www %>%
 Next, we count the number of articles by page number. About 27% of all lynching articles were on Page One.
 
 ```{r}
-#uses the main index of 11,396 extracted articles
+#uses the main index of 11,223  extracted articles
 
 black_press_master_june_26_2024$decade <- paste0(substr(black_press_master_june_26_2024$year, 0, 3), "0")
 
@@ -807,7 +802,7 @@ bp_pages_decade2 <- bp_pages_decade %>%
 
 #REDO with extracted articles
 ```{r}
-#Using the 11,396 extracted articles, we determine the number of page 1 stories per decade. 
+#Using the 11,223  extracted articles, we determine the number of page 1 stories per decade. 
 
 extracted_articles_index_june_22_2024$decade <- paste0(substr(extracted_articles_index_june_22_2024$year, 0, 3), "0")
 
@@ -871,7 +866,7 @@ count_decade <- extracted_articles_index_june_22_2024 %>%
   column_spec(1, width = "0.001em") %>%
   column_spec(2, width = "0.001em") %>%
   column_spec(3, width = "0.001em") %>% 
-  add_header_above(c("Lynching Articles by Decade, n=11,396" = 3)) %>% 
+  add_header_above(c("Lynching Articles by Decade, n=11,223 " = 3)) %>% 
   save_kable("../output_images_tables/viewed_sample_decade_6_26_2024.png")
 ```
 
@@ -906,7 +901,7 @@ pageplacement %>%
   geom_text(aes(label= pct, x= page, y= pct), hjust=.5, vjust=0) +
   labs(title = "Page Placement, Lynching Coverage, 1789-1963", 
        subtitle = "Page Number Placement of Lynching Stories",
-       caption = "Page 1 stories were 34% of 11,396 articles. Graphic by (redcated) , 6/26/2024",
+       caption = "Page 1 stories were 34% of 11,223  articles. Graphic by (redcated) , 6/26/2024",
        y="Pct of Pages",
        x="Page Number")
 

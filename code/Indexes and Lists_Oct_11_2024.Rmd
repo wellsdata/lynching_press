@@ -77,7 +77,6 @@ lynch1 <- lynch %>%
 ```
 
 
-
 ```{r include=FALSE}
 # 1633 from the black press
 # from extracted_articles_index_june_22_2024 has 11,223 articles
