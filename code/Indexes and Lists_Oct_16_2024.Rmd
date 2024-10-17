@@ -1,0 +1,185 @@
+---
+title: "Indexes and Lists"
+author: "(redacted for peer review)"
+date: "2024-10-11"
+output: html_document
+---
+
+Anonymized data and code stored at OSF: https://osf.io/7kpr4/?view_only=6c106acd6cb54f6f849e8c6f9098809f
+
+
+
+```{r include=FALSE}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "YOUR KEY HERE")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+#install.packages("tigris")
+#install.packages("zoo")
+library(tigris)
+library(stringr)
+library(janitor)
+library(zoo)
+library(lubridate)
+library(readtext)
+
+```
+
+# extracted_articles_index_oct_16_2024
+Oct 16 data cleaning and compiling
+extracted_articles_index_oct_16_2024 has 11,194 articles
+--1604 from the black press
+
+## Load Data
+```{r include=FALSE}
+#11,194 article index
+extracted_articles_index_oct_16_2024 <- read.csv("https://osf.io/download/uxw3a/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+#fact check
+extracted_articles_index_oct_16_2024 |> 
+  count(black_press)
+
+
+black_index_master_oct_16_2024 <- read.csv("https://osf.io/download/egkqu/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+#60,042 Library of Congress articles on lynching captured.
+main_index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+```
+
+### Load 11,194 extracted articles in a df
+```{r include=FALSE}
+#298,564 rows, for 11,194 articles span multiple rows for tokenization
+extracted_text_oct_16_2024 <- read_csv("https://osf.io/download/gw5dk/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+#black press extracted text: 1,604 articles
+black_press_extracted_text_oct_16_2024 <- read_csv("https://osf.io/download/95a3v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
+
+```
+
+
+```{r include=FALSE}
+# 1604 from the black press
+# from extracted_articles_index_oct_16_2024 has 11,194 articles
+# Oct 16 revision
+
+black_index_master_oct_16_2024 <- extracted_articles_index_oct_16_2024 %>% 
+  filter(black_press =="Y")
+
+# write.csv(black_index_master_oct_16_2024, "../data/blackindex_master_oct_16_2024.csv")
+#this was uploaded to OSF as https://osf.io/download/egkqu/?view_only=6c106acd6cb54f6f849e8c6f9098809f
+
+
+ bp <- black_index_master_oct_16_2024 %>% 
+   count(newspaper_name) %>% 
+   arrange(desc(n))
+# write.csv(bp, "../output_images_tables/bp_newspapers_oct_16_2024.csv")
+
+```
+
+# Black press index from Chronicling America
+```{r}
+#243 papers from the 59,967 paper search
+black_papers <- read_csv("../data/black_papers.csv") %>% 
+  rename(newspaper_name = Title) %>% 
+  as.data.frame()
+
+#61 separate BP titles
+black_papers <- black_papers %>% 
+  mutate(black = "Y")
+
+```
+
+
+### Counting the years
+
+```{r}
+years_10_16 <- extracted_articles_index_oct_16_2024 %>% 
+  count(year) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  mutate(rank_new = dense_rank(desc(pct_whole)))
+
+write.csv(years_10_16, "../output_images_tables/years_of_news_coverage_10_16_2024.csv")
+
+```
+
+
+
+### Counting the states
+
+```{r}
+totals_10_16 <- extracted_articles_index_oct_16_2024 %>% 
+  count(newspaper_state) %>% 
+  rename(count = n) %>% 
+  mutate(pct_whole = round(count/sum(count)*100,2)) %>% 
+  arrange(desc(pct_whole)) %>% 
+  mutate(rank_new = dense_rank(desc(pct_whole)))
+
+#Il (8%), AL, IA , IN (5%), AR (4.6%), AZ, VA, OH, WI, GA top newspaper states
+
+```
+
+### count of new pre-civil war stories
+
+```{r}
+#695 pre-civil war articles
+extracted_articles_index_oct_16_2024 %>% 
+filter(year < "1862") %>% 
+count(file_id) |> 
+  summarize(total =n())
+
+```
+
+# Full Library of Congress Newspaper List
+```{r}
+#Code from Khushboo Rathore
+download_loc <- "../data/newspapers_list.txt"
+download.file("https://chroniclingamerica.loc.gov/newspapers.txt", download_loc)
+
+newspaper_list <- read_delim(download_loc, delim = "|")
+
+clean_newspaper_list <- newspaper_list %>% 
+  clean_names() %>% 
+  select(state, title, lccn, oclc, issn, no_of_issues, first_issue_date, last_issue_date) %>% 
+  rename(newspaper = title, no_issues = no_of_issues, earliest_issue = first_issue_date, latest_issue = last_issue_date) %>% 
+  mutate_all(str_squish) %>% 
+  mutate(earliest_issue = lubridate::mdy(earliest_issue)) %>% 
+  mutate(latest_issue = lubridate::mdy(latest_issue))
+
+#write_csv(clean_newspaper_list, "../data/newspaper_list.csv")
+```
+
+# Printing Hate Main Index of Newspapers
+
+```{r}
+#new_main_index <- read.csv("../data/mainindex_10_30.csv")
+#full_list_clean <- read.csv("../data/main_index_with_names_111323.csv")
+#dec_28 with cleaned names, all but 1,170 newspapers named
+full_list_clean <- read.csv("../data/main_index_dec_28_2023.csv")
+
+```
+
+
+# Tolnay and Beck Lynching Inventory
+```{r}
+
+tolnay_beck <- read_csv("../data/Bailey_Beck_lynching_list_8_1_2022.csv") %>% 
+  as.data.frame()
+
+tolnay_beck <- janitor::clean_names(tolnay_beck)
+
+```
+```{r}
+tolnay_beck |> 
+  count(status_clean)
+```
+
+
