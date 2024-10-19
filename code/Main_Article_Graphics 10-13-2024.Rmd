@@ -910,100 +910,107 @@ count_decade <- extracted_articles_index_oct_16_2024 %>%
   save_kable("../output_images_tables/viewed_sample_decade_10_16_2024.png")
 ```
 
+# Figure 11: Mob coverage, characterization by decade Analyzing by Decade
+#Fixed 10-19-2024
 
-
-
-
-#STOPPED OCT 16
-
-# Figure 10: Mob coverage, characterization by decade Analyzing by Decade
-
-#Figure 11: Lynching Expected. (1902, July 23). Alexandria Gazette. 
-
-
-# CHECK CHECK Figure 12: Newspaper, lynch mobs and justice narrative. 
 ```{r}
-# install.packages("readxl")
-library(readxl)
+mob_decade <- read_csv("../output_images_tables/mob_decade_trends.csv")
 
-#Downloads sample of 3,225 articles manually coded by a team of undergraduate researchers, Fall 2023.
-# URL to download the Excel file
-excel_url <- "https://osf.io/download/zu4hk/?view_only=6c106acd6cb54f6f849e8c6f9098809f"
+# Reshape the data to long format
+mob_long <- mob_decade %>%
+  select(decade,percent_hostile,percent_orderly, percent_neutral) |> 
+  filter(decade > 1820) |> 
+  pivot_longer(
+    cols = starts_with("percent_"), 
+    names_to = "story_type", 
+    values_to = "percentage"
+  ) 
 
-# File path where you want to save the downloaded Excel file
-downloaded_file <- "all_mob_connected.xlsx"
+# Plot with side-by-side bars
+mob_long %>%
+  ggplot(aes(x = factor(decade), y = percentage, fill = story_type)) +
+  geom_col(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    values = c("percent_hostile" = "red", 
+               "percent_neutral" = "blue",
+                "percent_orderly" = "#458B00"),
+    labels = c("Hostile", "Neutral", "Orderly")
+  ) +
+  labs(
+    title = "Lynch mobs portrayed neutrally in at least one-third of newspapers",
+    subtitle = "Percent of news coverage by decade portraying lynch mobs as hostile, orderly or neutral",
+    caption = "1800s removed, lack of data. n=2,704 articles. Graphic by (redacted - peer review), 10/19/2024",
+    y = "Pct of Pages",
+    x = "Decade",
+    fill = "Story Type"
+  ) 
 
-# Download the Excel file to your local machine
-download.file(url = excel_url, destfile = downloaded_file, mode = "wb")
 
-# Read the Excel file into a dataframe
-all_mob_connected <- read_excel(downloaded_file, sheet = "all_mob_connected")
-
-# all_mob_connected <- read_sheet("https://docs.google.com/spreadsheets/d/1XG2um-mkZ0ta6kikMuQucydNOPV2POrWLPtxRTuBh0o/edit#gid=0", sheet = "all_mob_connected")
-
-
-decade_trends <- all_mob_connected %>% 
-  filter(!is.na(decade)) %>% 
-  group_by(decade) %>% 
-  summarize(
-    hostile = sum(hostile),
-    orderly = sum(orderly),
-    neutral = sum(neutral),
-    justice = sum(justice),
-    identified = sum(identified),
-    total = n(),
-    percent_hostile = round(hostile/total*100,2),
-    percent_orderly = round(orderly/total*100,2),
-    percent_neutral = round(neutral/total*100,2),
-    percent_justice = round(justice/total*100,2),
-    percent_identified = round(identified/total*100,2)
-  )
-
-write_csv(decade_trends, "../output_images_tables/mob_decade_trends.csv")
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_11_mob_coverage_10_19_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 ```
 
 
-# CHECK Figure 13: Regional trends lynching and justice. 
-```{r}
-regional_trends <- all_mob_connected %>% 
-  filter(!is.na(newspaper_region)) %>% 
-  group_by(newspaper_region) %>% 
-  summarize(
-    hostile = sum(hostile),
-    orderly = sum(orderly),
-    neutral = sum(neutral),
-    justice = sum(justice),
-    identified = sum(identified),
-    total = n(),
-    percent_hostile = round(hostile/total*100,2),
-    percent_orderly = round(orderly/total*100,2),
-    percent_neutral = round(neutral/total*100,2),
-    percent_justice = round(justice/total*100,2),
-    percent_identified = round(identified/total*100,2)
-  )
+#Figure 12: Lynching Expected. (1902, July 23). Alexandria Gazette. 
 
-write_csv(regional_trends, "../output_images_tables/mob_regional_trends.csv")
+
+#Figure 13: Newspaper, lynch mobs and justice narrative. 
+#Fixed 10-19-2024
+
+```{r}
+mob_decade <- read_csv("../output_images_tables/mob_decade_trends.csv")
+
+# Reshape the data to long format
+justice <- mob_decade %>%
+  select(decade,percent_justice) |> 
+  filter(decade > 1820) |> 
+  pivot_longer(
+    cols = starts_with("percent_"), 
+    names_to = "story_type", 
+    values_to = "percentage"
+  ) 
+
+# Plot with side-by-side bars
+justice %>%
+  ggplot(aes(x = factor(decade), y = percentage, fill = story_type)) +
+  geom_col(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    values = c("percent_justice" = "blue"),
+    labels = c("Hostile", "Neutral", "Orderly")
+  ) +
+  theme(legend.position = "none") +
+  labs(
+    title = "News of lynching as 'justice' drops after 1830s",
+    subtitle = "Percent of news coverage by decade equating lynch mobs as performing justice",
+    caption = "1800s removed, lack of data. n=2,704 articles. Graphic by (redacted - peer review), 10/19/2024",
+    y = "Pct of Pages",
+    x = "Decade") 
+
+
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_13_mob_justice_10_19_2024.png"),device = "png",width=9,height=6, dpi=800)
+
 ```
 
 
+#Figure 14: Common narratives in Black press coverage of lynching
+#Fixed 10-19-2024
+in Topic Modeling_10_19_2024.rmd, Line 687
 
-#Figure 13: Common narratives in Black press coverage of lynching
-in Black Papers Topic Modeling, 3_16_2023.rmd
-
-#Figure 14 mainstrean_topics_june27.png
-in Mainstream Papers topic Modeling.rmd, Line 224
+#Figure 15 mainstrean_topics_june27.png
+#Fixed 10-19-2024
+in Topic Modeling_10_19_2024.rmd, Line 368
 
 
-#Figure 15: Compare White / Black Article Counts
+#Figure 16: Compare White / Black Article Counts
+#Fixed 10-19-2024
 ```{r}
 wp_bp_comparison <- extracted_articles_index_oct_16_2024 |> 
-  mutate(black_press = str_squish(black_press)) |> 
+  mutate(black_press = str_squish(black_press)) |>
   mutate(black_press = case_when(
     black_press != "Y" | is.na(black_press) ~ "N",
     black_press=="Y" ~ "Y",
     TRUE ~ black_press
-  )) |> 
+  )) |>
   mutate(decade = paste0(substr(year, 1, 3), "0")) |> 
   select(decade, file_id, black_press) |> 
   group_by(decade) |> 
@@ -1021,10 +1028,11 @@ wp_bp_comparison |>
   column_spec(3, width = "0.001em") %>% 
   column_spec(4, width = "0.001em") %>% 
   add_header_above(c("White v. Black Press Article Sample, n=11,194 " = 4)) %>% 
-  save_kable("../output_images_tables/wp_bp_sample_decade_10_16_2024.png")
+  save_kable("../output_images_tables/Article_Images/figure_16_wp_bp_sample_decade_10_19_2024.png")
 
 ```
 
+# STOPPED OCT 19
 
 # CHECK BELOW
 
