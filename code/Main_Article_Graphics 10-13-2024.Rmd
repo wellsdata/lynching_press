@@ -98,7 +98,6 @@ x
 
 # Figure 1: Analyzing the Lynching Data
 
-#Fixed 10-16-2024
 ```{r}
 
 #Here is a chart, Figure 1, that describes lynching search results by year, counting news pages with at least one lynching story in the LOC database.
@@ -120,7 +119,6 @@ ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_
 
 ```
 
-#Fixed 10-16-2024
 ```{r}
 #count with pct total
 count_year <- extracted_articles_index_oct_16_2024 %>% 
@@ -132,7 +130,6 @@ count_year <- extracted_articles_index_oct_16_2024 %>%
 
 Here is the list of all newspapers we captured. I'm just supplying the top 20 results.
 ### Total by newspaper
-#Fixed 10-16-2024
 ```{r}
 
 #Table from Pg. 10 top 10 newspapers
@@ -166,7 +163,6 @@ newspaper_top %>%
 ```
 
 ### Total publications by state
-#Fixed 10-16-2024
 ```{r}
 #total by state
 state <- extracted_articles_index_oct_16_2024 %>% 
@@ -191,7 +187,7 @@ state %>%
 
 
 ### Regional classification for newspaper
-#Fixed 10-16-2024
+
 ```{r}
 #Classification based on https://www.census.gov/programs-surveys/economic-census/guidance-geographies/levels.html#par_textimage_34
 extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024 %>% 
@@ -249,7 +245,7 @@ extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024 %>%
 
 ```
 
-#Fixed 10-16-2024
+
 ```{r}
 ### Border Designation
 extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024 %>% 
@@ -264,7 +260,7 @@ extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024 %>%
 
 
 # Figure 2: State-region totals
-#Fixed 10-16-2024
+
 ```{r}
 
 #total by region
@@ -411,7 +407,7 @@ tolnay_events %>%
 
 ```
 # Figure 3: Lynching Totals, Tolnay & Beck, 2022
-## Fixed 10-11-2024
+
 ```{r}
 
 tolnay_beck <- tolnay_beck %>% 
@@ -460,9 +456,9 @@ ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf,
 ```
 
 # Figure 4: Lynching Totals graphic over time
-## Fixed 10-11-2024
+
 ```{r}
-#fixed 10-11-2024
+
 tolnay_beck %>% 
   filter(status_clean =="lynching") |> 
 count(year) %>% 
@@ -494,7 +490,7 @@ tolnay_beck_year
 ```
 
 Year Totals - Lynching Articles
-#Fixed 10-16-2024
+
 ```{r}
 lynching_year <- extracted_articles_index_oct_16_2024 %>% 
   group_by(year) %>% 
@@ -511,7 +507,7 @@ It shows peak lynching activity between 1884-1895 and a significant drop off aft
 Our newspaper research has broadly similar findings.
 
 # Figure 5: Ida Wells Graphic 
-#Fixed 10-16-2024
+
 ```{r}
 combo2 <- lynching_year %>% 
   right_join(tolnay_beck_year, by="year") %>% 
@@ -542,7 +538,7 @@ pl
 ```
 
 #Figure 6: Detail ida graph 10 16 2024
-#Fixed 10-16-2024
+
 ```{r}
 #focus on the change in 1890 - 1920
 combo3 <- combo2 %>% 
@@ -671,7 +667,7 @@ lynch_word_decade <- z %>%
    filter(!decade>1960)
 ```
 # Figure 8 Avg_word_count
-# Fixed 10-16-2024
+
 ```{r}
 lynch_word_decade %>% 
   ggplot(aes(x = decade, y = avg_words,fill = avg_words)) +
@@ -768,7 +764,7 @@ w_lynch_word_decade <- www %>%
 
 ```
 #Figure 9: Page Placement
-#Fixed 10-16-2024
+
 ```{r}
 extracted_articles_index_oct_16_2024$decade <- paste0(substr(extracted_articles_index_oct_16_2024$year, 0, 3), "0")
 
@@ -841,7 +837,7 @@ bp_pages_decade2 <- bp_pages_decade %>%
 
 ```
 # Figure 10: Page 1 stories by decade
-#Fixed 10-16-2024
+
 ```{r}
 #Using the 11,194  extracted articles, we determine the number of page 1 stories per decade. 
 
@@ -910,14 +906,42 @@ count_decade <- extracted_articles_index_oct_16_2024 %>%
   save_kable("../output_images_tables/viewed_sample_decade_10_16_2024.png")
 ```
 
-# Figure 11: Mob coverage, characterization by decade Analyzing by Decade
-#Fixed 10-19-2024
+##Mob analysis in white papers
 
 ```{r}
-mob_decade <- read_csv("../output_images_tables/mob_decade_trends.csv")
+
+mob_cleaned <- read_csv("../output_images_tables/mob_cleaned_10_20_2024.csv")
+
+mob_summary <- mob_cleaned %>% 
+  group_by(decade) %>% 
+  summarize(
+    total_hostile = sum(hostile, na.rm = TRUE),
+    total_neutral = sum(neutral, na.rm = TRUE),
+    total_orderly = sum(orderly, na.rm = TRUE),
+    total_justice = sum(justice, na.rm = TRUE),
+    total_identified = sum(identified, na.rm = TRUE),
+    total_unsure = sum(unsure, na.rm = TRUE),
+    grand_total = n() 
+    ) %>% 
+        mutate(
+    percent_hostile = round(total_hostile / grand_total * 100),
+    percent_neutral = round(total_neutral / grand_total * 100),
+    percent_orderly = round(total_orderly / grand_total * 100),
+    percent_justice = round(total_justice / grand_total * 100),
+    percent_identified = round(total_identified / grand_total * 100),
+    percent_unsure = round(total_unsure / grand_total * 100)
+  )
+
+write.csv(mob_summary, "/Users/robwells/Code/lynching_press/output_images_tables/mob_summary_10_20_2024.csv")
+
+```
+
+# Figure 11: Mob coverage, characterization by decade Analyzing by Decade
+
+```{r}
 
 # Reshape the data to long format
-mob_long <- mob_decade %>%
+mob_long <- mob_summary %>%
   select(decade,percent_hostile,percent_orderly, percent_neutral) |> 
   filter(decade > 1820) |> 
   pivot_longer(
@@ -930,6 +954,15 @@ mob_long <- mob_decade %>%
 mob_long %>%
   ggplot(aes(x = factor(decade), y = percentage, fill = story_type)) +
   geom_col(position = "dodge", stat = "identity") +
+    geom_text(
+    data = subset(mob_long, story_type == "percent_neutral"),  # Filter only neutral bars
+    aes(label = paste0(percentage, "%")), 
+ #   position = position_dodge(width = 0.5),  # Align with bars
+ #   vjust = -0.1,
+   hjust = -.3,# Slightly above the bar
+    angle = 90      # Rotate the text 90 degrees
+  ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
   scale_fill_manual(
     values = c("percent_hostile" = "red", 
                "percent_neutral" = "blue",
@@ -937,16 +970,16 @@ mob_long %>%
     labels = c("Hostile", "Neutral", "Orderly")
   ) +
   labs(
-    title = "Lynch mobs portrayed neutrally in at least one-third of newspapers",
-    subtitle = "Percent of news coverage by decade portraying lynch mobs as hostile, orderly or neutral",
-    caption = "1800s removed, lack of data. n=2,704 articles. Graphic by (redacted - peer review), 10/19/2024",
+    title = "Lynch mobs often portrayed neutrally in white newspapers",
+    subtitle = "Percent of white newspaper coverage portrayals of lynch mobs",
+    caption = "1800s removed, lack of data. n=3,147 articles. Graphic by (redacted - peer review), 10/20/2024",
     y = "Pct of Pages",
     x = "Decade",
     fill = "Story Type"
   ) 
 
 
-ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_11_mob_coverage_10_19_2024.png"),device = "png",width=9,height=6, dpi=800)
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_11_mob_coverage_10_20_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 ```
 
@@ -954,14 +987,14 @@ ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_
 #Figure 12: Lynching Expected. (1902, July 23). Alexandria Gazette. 
 
 
+
 #Figure 13: Newspaper, lynch mobs and justice narrative. 
-#Fixed 10-19-2024
+
 
 ```{r}
-mob_decade <- read_csv("../output_images_tables/mob_decade_trends.csv")
 
 # Reshape the data to long format
-justice <- mob_decade %>%
+justice <- mob_summary %>%
   select(decade,percent_justice) |> 
   filter(decade > 1820) |> 
   pivot_longer(
@@ -972,37 +1005,42 @@ justice <- mob_decade %>%
 
 # Plot with side-by-side bars
 justice %>%
-  ggplot(aes(x = factor(decade), y = percentage, fill = story_type)) +
+  ggplot(aes(x = factor(decade), y = percentage, fill = percentage)) +
   geom_col(position = "dodge", stat = "identity") +
-  scale_fill_manual(
-    values = c("percent_justice" = "blue"),
-    labels = c("Hostile", "Neutral", "Orderly")
+    geom_text(
+    data = subset(justice, story_type == "percent_justice"),  
+    aes(label = paste0(percentage, "%")), 
+ #   position = position_dodge(width = 0.5),  # Align with bars
+    vjust = -0.1,
+   hjust = .5,# Slightly above the bar
+    #angle = 90      # Rotate the text 90 degrees
   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
   theme(legend.position = "none") +
   labs(
-    title = "News of lynching as 'justice' drops after 1830s",
-    subtitle = "Percent of news coverage by decade equating lynch mobs as performing justice",
-    caption = "1800s removed, lack of data. n=2,704 articles. Graphic by (redacted - peer review), 10/19/2024",
+    title = "Lynching as 'justice' drops after 1830s in white newspapers",
+    subtitle = "Predominantly white news coverage equating lynch mobs with justice",
+    caption = "1800s removed, lack of data. n=3,147 articles. Graphic by (redacted - peer review), 10/20/2024",
     y = "Pct of Pages",
     x = "Decade") 
 
 
-ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_13_mob_justice_10_19_2024.png"),device = "png",width=9,height=6, dpi=800)
+ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_13_mob_justice_10_20_2024.png"),device = "png",width=9,height=6, dpi=800)
 
 ```
 
 
 #Figure 14: Common narratives in Black press coverage of lynching
-#Fixed 10-19-2024
+
 in Topic Modeling_10_19_2024.rmd, Line 687
 
 #Figure 15 mainstrean_topics_june27.png
-#Fixed 10-19-2024
+
 in Topic Modeling_10_19_2024.rmd, Line 368
 
 
 #Figure 16: Compare White / Black Article Counts
-#Fixed 10-19-2024
+
 ```{r}
 wp_bp_comparison <- extracted_articles_index_oct_16_2024 |> 
   mutate(black_press = str_squish(black_press)) |>
@@ -1031,10 +1069,6 @@ wp_bp_comparison |>
   save_kable("../output_images_tables/Article_Images/figure_16_wp_bp_sample_decade_10_19_2024.png")
 
 ```
-
-# STOPPED OCT 19
-
-# CHECK BELOW
 
 #Figure 16: Common two-word phrases in Black, white press by decade, 1900-1930s. 
 
@@ -1112,7 +1146,9 @@ bp_per_10000_jim_crow
 #jim crow was 8.75 times more frequent in Black press than white press
 ```
 
+#white_bigrams 
 
+```{r}
 white_bigrams %>%
   filter(str_detect(word1, 'civil') & str_detect(word2, 'rights'))
 
@@ -1157,9 +1193,6 @@ black_bigrams %>%
   filter(str_detect(word1, 'civil') & str_detect(word2, 'rights'))
 
 ```
-
-#Figure 17: The Appeal, St. Paul, Minn., Oct. 15, 1904. Pg. 2
-
 
 #Black Press: Count words by story
 ```{r}

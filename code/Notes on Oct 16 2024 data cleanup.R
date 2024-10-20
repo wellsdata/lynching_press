@@ -124,3 +124,66 @@ year_compare %>%
   filter(year < "1862") %>% 
   summarize(sum(diff))
 
+
+
+##Oct 20 cleaning to make sure the extracted_article_index has the N for white press
+
+
+extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024 |> 
+  mutate(black_press = str_squish(black_press)) |>
+  mutate(black_press = case_when(
+    black_press != "Y" | is.na(black_press) ~ "N",
+    black_press=="Y" ~ "Y",
+    TRUE ~ black_press
+  )) 
+
+
+extracted_articles_index_oct_16_2024 |>
+  count(black_press)
+
+extracted_articles_index_oct_16_2024 <- extracted_articles_index_oct_16_2024[ -c(1:3) ]
+
+write_csv(extracted_articles_index_oct_16_2024, "../data/extracted_articles_index_oct_16_2024.csv")
+
+write_csv(extracted_articles_index_oct_16_2024, "../data/extracted_articles_index_oct_16_2024.csv")
+
+#Mob Portrayal cleaning
+# Oct 19 2024 check
+#cleaned 30 BP articles from the Nov 2023 coding
+
+```{r}
+
+mob2 <- read_csv("/Users/robwells/Code/Jour389L/output/mob_full_11_15.csv")
+
+#Nov 2023 index - 7162 articles with 331 black press.
+nov_2023_index <- read_csv("/Users/robwells/Code/Jour389L/data/master_article_index_10.19.csv")
+
+nov_2023_index <- nov_2023_index |> 
+  mutate(black_press = str_squish(black_press)) |>
+  mutate(black_press = case_when(
+    black_press != "Y" | is.na(black_press) ~ "N",
+    black_press=="Y" ~ "Y",
+    TRUE ~ black_press
+  )) 
+
+nov_2023_index |> 
+  count(black_press)
+
+
+wp_bp_index <- nov_2023_index |> 
+  select(file_id2, newspaper_name, date, black_press, filename,sn)
+
+#14 black press publications in the Nov 2023 mob categorization data
+new_mob3 <- mob2 |> 
+  inner_join(wp_bp_index, by=c("sn")) |> 
+  filter(black_press =="Y") |> 
+  distinct(sn)
+
+#remove black press. now 3147 articles. cut 30 articles
+mob_cleaned <- mob2 |> 
+  anti_join(new_mob3, by=("sn"))
+
+```
+
+
+
