@@ -291,7 +291,7 @@ female  <- tibble::rownames_to_column(female , "story_id")
 female $story_id <- gsub("X", "", female $story_id)
 
 head(female$story_id, 20)
-#Checks out June 23
+#Checks out Oct 19
 
 
 ```
@@ -314,7 +314,7 @@ legal  <- tibble::rownames_to_column(legal , "story_id")
 legal $story_id <- gsub("X", "", legal $story_id)
 
 head(legal$story_id, 20)
-#Checks out June 23
+#Checks out Oct 19
 
 
 ```
@@ -337,7 +337,7 @@ unknown  <- tibble::rownames_to_column(unknown , "story_id")
 unknown $story_id <- gsub("X", "", unknown $story_id)
 
 head(unknown$story_id, 20)
-#Checks out June 23
+#Checks out Oct 19
 #main theme is negros are lynching victims
 
 ```
@@ -358,7 +358,7 @@ critic <- tibble::rownames_to_column(critic, "story_id")
 
 critic$story_id <- gsub("X", "", critic$story_id)
 
-#Checks out June 23
+#Checks out Oct 19
 
 
 ```
@@ -611,7 +611,7 @@ racism  <- tibble::rownames_to_column(racism , "story_id")
 racism$story_id <- gsub("X", "", racism $story_id)
 
 head(racism$story_id, 20)
-#Checks out June 24
+#Checks out Oct 19
 
 
 ```
@@ -634,7 +634,7 @@ legal  <- tibble::rownames_to_column(legal , "story_id")
 legal $story_id <- gsub("X", "", legal $story_id)
 
 head(legal$story_id, 20)
-#Checks out June 24
+#Checks out Oct 19
 
 
 ```
@@ -657,7 +657,7 @@ investigate  <- tibble::rownames_to_column(investigate , "story_id")
 investigate $story_id <- gsub("X", "", investigate $story_id)
 
 head(investigate$story_id, 20)
-#Checks out June 24
+#Checks out Oct 19
 
 
 ```
@@ -679,7 +679,7 @@ misc  <- tibble::rownames_to_column(misc , "story_id")
 misc$story_id <- gsub("X", "", misc $story_id)
 
 head(misc$story_id, 20)
-#Checks out June 24
+#Checks out Oct 19
 
 
 ```
