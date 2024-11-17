@@ -153,7 +153,7 @@ combo |>
 list <- combo |> 
   count(newspaper, location)
 
-write.csv(list, "list_of_ida_newspapers.csv")
+# write.csv(list, "list_of_ida_newspapers.csv")
 
 ```
 
@@ -289,13 +289,22 @@ black <- black_papers |>
 ```{r}
 combo2 <- combo1 |> 
   mutate(newspaper = str_squish(newspaper)) |> 
-  left_join(black, by=c("pubX", "full_state" = "State")) |> 
+  left_join(black, by=c("pubX", "full_state" = "State")) 
+
+combo2 <- combo2 |> 
   mutate(black = if_else(is.na(black), "N", black))
 
 combo2 |> 
   count(black)
 
 #write.csv(combo2, "ida_b_wells_mentions_1880-1963.csv")
+```
+
+
+# Resuming work, loading data 
+This avoids rerunning the scraping script, minimizing server calls
+```{r}
+combo2 <- read.csv("ida_b_wells_mentions_1880-1963.csv")
 ```
 
 # Count black, white by year
@@ -351,4 +360,25 @@ ggplot(aes(x = factor(year), y = n, fill = black)) +
        x="Year")
 
 ```
+
+### Examine white newspapers
+```{r}
+white <- combo2 |> 
+  filter(black=="N") |> 
+  count(pubX, full_state) |> 
+  arrange(desc(n))
+
+
+```
+
+### Papers by year
+
+```{r}
+high_cir_white <- combo2 |> 
+  filter(pubX %in% c("evening star", "the indianapolis journal", "the topeka state journal")) |> 
+  arrange(year)
+
+
+```
+
 

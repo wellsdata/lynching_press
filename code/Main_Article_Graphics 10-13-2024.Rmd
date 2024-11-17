@@ -19,8 +19,8 @@ library(tidyverse)
 library(sampler)
 #install.packages("rio")
 library(rio)
-#install.packages("kableExtra")
-#install.packages("formattable")
+# install.packages("kableExtra")
+# install.packages("formattable")
 library(formattable)
 library(kableExtra)
 library(knitr)
@@ -299,15 +299,9 @@ ggsave(here::here("../lynching_press/output_images_tables/Article_Images/Figure_
 
 
 
-### Tolnay Beck Bailey Victim Data - Compare Trends with News Coverage
+### Updated Beck-Tolnay Victim Data - Compare Trends with News Coverage
 
-The University of Illinois holds the Tolnay_Bailey_Victim_Data of all known lynching cases from 1882-1929.
-
-\#<https://uofi.app.box.com/s/ffmqd2rjxrdt1tvxl38d/file/110041209555>
-
-There are 2,249 lynching cases in this database, again from 1882-1929
-
-There is also the Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020, probable and confirmed lynchings.
+The University of Illinois holds the Updated Beck-Tolnay Victim_Data of all known lynching cases from 1882-1929. 5,872 cases, 1865-2020, probable and confirmed lynchings.
 https://app.box.com/s/99ggc6epn4rdvritke0h/file/992017683748
 
 **Our newspaper research reaches back much earlier than this dataset.** 
@@ -385,12 +379,12 @@ kbl(tolnay_counts) %>%
 tolnay_counts %>%
   # arrange(desc(n)) %>% 
  #kbl(caption = "Lynching Totals", font_size = 30) %>%
-  kbl(caption = "Lynching by type, Tolnay, Beck & Bailey list of 5,872 cases, 1865-2020", font_size = 24) %>%
+  kbl(caption = "Lynching by type, Updated Beck-Tolnay list of 5,872 cases, 1865-2020", font_size = 24) %>%
   kable_classic(full_width = F, html_font = "Cambria") %>% 
   column_spec(1, bold = T, border_right = T) %>%
   column_spec(2, width = "5em", background = "yellow") 
 
-#Tolnay Beck Lynch Totals 4_14_2023.png
+#Updated Beck Tolnay Totals 11_17_2024.png
  
 ```
 
@@ -436,25 +430,25 @@ kbl(tolnay_counts) %>%
 
 tolnay_graphic <- tolnay_counts %>%
   arrange(desc(Number)) %>% 
-  kbl(caption = "Lynching Totals, Tolnay & Beck, 2022", font_size = 30) %>%
+  kbl(caption = "Lynching Totals, Updated Beck-Tolnay, 2022", font_size = 30) %>%
   kable_classic(full_width = F, html_font = "Cambria") %>% 
   column_spec(1, bold = T, border_right = T) %>%
   column_spec(2, width = "5em", background = "yellow") 
 
+ #install.packages("webshot") -->
 library(webshot)
-# Save the kable table as an image
-temp_html <- tempfile(fileext = ".html")
-save_kable(tolnay_graphic, file = temp_html)
-img_file <- tempfile(fileext = ".png")
-webshot(temp_html, file = img_file, zoom = 2) # Adjust zoom to control resolution
+# Save the kable table as an image -->
+temp_html <- tempfile(fileext = ".html") 
+save_kable(tolnay_graphic, file = temp_html) 
+img_file <- tempfile(fileext = ".png") 
+webshot(temp_html, file = img_file, zoom = 15) # Adjust zoom to control resolution 
 
-# Convert the image to a ggplot object
+# Convert the image to a ggplot object -->
 img <- grid::rasterGrob(png::readPNG(img_file), interpolate = TRUE)
 
-# Save the ggplot object as a high-resolution image
-ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), dpi = 800, width = 10, height = 10)
+# Save the ggplot object as a high-resolution image -->
+ggsave("tolnay_graphic.png", plot = ggplot() + annotation_custom(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), dpi = 800, width = 10, height = 10) 
 ```
-
 # Figure 4: Lynching Totals graphic over time
 
 ```{r}
@@ -482,12 +476,25 @@ ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_10_16_202
 Year Totals - seguin_tolnay
 ```{r}
 tolnay_beck_year <- tolnay_beck %>% 
+ filter(status_clean =="lynching") |> # added nov 17
   group_by(year) %>% 
   count(year) %>% 
   rename(total = n) %>% 
-  mutate(pct_total = formattable::percent(total/5871, 3))
+  mutate(pct_total = formattable::percent(total/5039, 3)) # added nov 17
+ #mutate(pct_total = formattable::percent(total/5871, 3))
 tolnay_beck_year
 ```
+
+Focus on 1868 lynching
+```{r}
+tolnay_beck |> 
+  filter(year=="1868") |> 
+  count(lynch_state) |> 
+  arrange(desc(n))
+
+```
+
+
 
 Year Totals - Lynching Articles
 
@@ -530,14 +537,14 @@ pl <- pl + theme(axis.text.x = element_text(angle=90))
 pl <- pl + labs(x = "Year", y = "Pct of whole")
 pl <- pl + labs(title = "Newspaper Coverage vs Lynchings, 1865-1963", 
         subtitle = "Newspaper Articles (Red) vs. Actual Victims (Blue), pct of whole",
-       caption = "Tolnay_Beck Victims n = 5039. Media n = 11,194  articles. Graphic by (redacted - peer review), 10/16/2024")
+       caption = "Tolnay_Beck Victims n = 5039. Media n = 11,194  articles. Graphic by (redacted - peer review), 11/17/2024")
 
-ggsave("../output_images_tables/Article_Images/Figure_5_ida_graph_10_16_2024.png", device = "png",width=9,height=6, dpi=800)
+ggsave("../output_images_tables/Article_Images/Figure_5_ida_graph_11_17_2024.png", device = "png",width=9,height=6, dpi=800)
 
 pl
 ```
 
-#Figure 6: Detail ida graph 10 16 2024
+#Figure 6: Detail ida graph 11 17 2024
 
 ```{r}
 #focus on the change in 1890 - 1920
@@ -554,9 +561,9 @@ plx <- plx + theme(axis.text.x = element_text(angle=90))
 plx <- plx + labs(x = "Year", y = "Pct of whole")
 plx <- plx + labs(title = "Newspaper Coverage vs Lynchings, 1890-1920", 
         subtitle = "Newspaper Articles (Red) vs. Actual Victims (Blue), pct of whole",
-        caption = "Tolnay_Beck Victims n = 5039. Media n = 11,194  articles. Graphic by (redacted - peer review), 10/16/2024")
+        caption = "Tolnay_Beck Victims n = 5039. Media n = 11,194  articles. Graphic by (redacted - peer review), 11/17/2024")
 
-ggsave("../output_images_tables/Article_Images/Figure_6_detail_ida_graph_10_16_2024.png", device = "png",width=9,height=6, dpi=800)
+ggsave("../output_images_tables/Article_Images/Figure_6_detail_ida_graph_11_17_2024.png", device = "png",width=9,height=6, dpi=800)
 
 plx
 ```
