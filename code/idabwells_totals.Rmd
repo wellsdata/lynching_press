@@ -1,0 +1,354 @@
+---
+title: "IdaBWells search"
+author: "Rob Wells"
+date: "2024-11-15"
+output: html_document
+---
+
+This code searches Chronicling America from 1880 to 1963 for all articles containing the words "Ida B Wells" within 5 of "lynch." https://chroniclingamerica.loc.gov/search/pages/results/?dateFilterType=yearRange&date1=1880&date2=1963&language=&ortext=&andtext=&phrasetext=Ida+B+Wells&proxtext=lynch&proxdistance=5&rows=20&searchType=advanced
+
+The code returned 869 results, which was an index of the article, publication, city, state and date
+
+The results were scraped for the decade of the 1880s, 1890s, and then from 1900-1963 in order to reduce the server demand
+
+The results were linked to an index of 327 African American newspapers in Chronicling America
+https://www.loc.gov/collections/chronicling-america/dynamic-list-of-titles/?searchType=advanced&st=table&sb=title_s_asc&subject_ethnicity=african+american
+
+An analysis of Black vs white news coverage based on this search was conducted and visualized.
+
+### Load libraries
+```{r}
+library(rvest)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tidyverse)
+```
+# Scrape Chronicling America
+This search was adjusted the decade of the 1880s, 1890s, and then from 1900-1963 in order to reduce the server demand
+```{r}
+# Function to scrape results for a single year
+scrape_chronicling_america_search <- function(year) {
+  base_url <- "https://chroniclingamerica.loc.gov/search/pages/results/"
+  
+  # Construct the search URL
+  query <- paste0(
+    "?date1=", year,
+    "&date2=", year,
+    "&searchType=advanced",
+    "&language=&sequence=0",
+    "&proxtext=Ida+B+Wells",  
+    "&ortext=lynch",
+    "&proxdistance=5",
+    "&state=&rows=1000",
+    "&dateFilterType=yearRange"
+  )
+  
+  url <- paste0(base_url, query)
+  print(paste("Fetching:", url))
+  
+  # Read and parse the search results page
+  page <- tryCatch(read_html(url), error = function(e) {
+    warning(paste("Error fetching year:", year))
+    return(NULL)
+  })
+  
+  if (is.null(page)) return(data.frame())
+  
+  # Get all search result blocks
+  results <- page %>%
+    html_nodes(".highlite") %>%  # Targets search result items
+    html_text(trim = TRUE)
+  
+  # Print raw results for debugging
+  print(paste("Results found for year", year, ":", length(results)))
+  
+  # Process each result
+  parsed_results <- map_dfr(results, function(text) {
+    tryCatch({
+      # Extract newspaper name, location, and date
+      newspaper <- str_extract(text, "^[^\\[\\(]+") %>% trimws()
+      location <- str_extract(text, "\\([^\\)]+\\)") %>% 
+        gsub("[\\(\\)]", "", .) %>% 
+        trimws()
+      date <- str_extract(text, "\\w+ \\d{1,2}, \\d{4}")
+      
+      data.frame(
+        newspaper = newspaper,
+        location = location,
+        date = date,
+        full_text = text,
+        stringsAsFactors = FALSE
+      )
+    }, error = function(e) {
+      warning("Error parsing result: ", text)
+      data.frame(
+        newspaper = NA,
+        location = NA,
+        date = NA,
+        full_text = text,
+        stringsAsFactors = FALSE
+      )
+    })
+  })
+  
+  return(parsed_results)
+}
+
+# Function to scrape for a range of years
+scrape_year_range <- function(start_year, end_year, delay = 2) {
+  results <- map_dfr(start_year:end_year, function(year) {
+    Sys.sleep(delay)  # Add a delay between requests to avoid overloading the server
+    scrape_chronicling_america_search(year)
+  })
+  
+  return(results)
+}
+
+# Scrape results for 1890-1892
+results_1900_1963 <- scrape_year_range(1900, 1963)
+
+# Display summary
+print(paste("Total results found:", nrow(results_1900_1963)))
+print(head(results_1900_1963))
+
+# Save results to CSV
+write.csv(results_1900_1963, "chronicling_america_1900_1963_pt2.csv", row.names = FALSE)
+```
+
+### Results combined into a single dataframe
+```{r}
+combo <- rbind(results_1880_1889, results_1890_1899, results_1900_1963)
+
+combo <- combo |> 
+  mutate(date_original = date) |> 
+  separate(date, into = c("date1", "year"), sep = ",") 
+
+write.csv(combo, "ida_b_wells_mentions_1880-1963.csv")
+```
+
+# Resuming work, loading data 
+This avoids rerunning the scraping script, minimizing server calls
+```{r}
+combo <- read.csv("ida_b_wells_mentions_1880-1963.csv")
+```
+
+# Visualize
+### Articles Mentioning Ida B Wells By Year
+```{r}
+
+combo |>
+  count(year) |> 
+  ggplot(aes(x = year, y = n, fill = n)) +
+  geom_col(position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = "Articles Mentioning Ida B Wells By Year", 
+       subtitle = "Search of Chronicling America",
+       caption = "Graphic by Rob Wells, 11/15/2024",
+       y="Count of Articles",
+       x="Year")
+```
+
+```{r}
+list <- combo |> 
+  count(newspaper, location)
+
+write.csv(list, "list_of_ida_newspapers.csv")
+
+```
+
+# List of Black newspapers
+Here's the search
+https://www.loc.gov/collections/chronicling-america/dynamic-list-of-titles/?sb=title_s_asc&searchType=advanced&dl=title&subject_ethnicity=african+american&st=table&c=1000
+
+Data downloaded from CSV from website: 327 titles
+
+```{r}
+black_papers <- read.csv("~/Code/lynching_press/data/black_papers_chronicling_america_nov_2024.csv") 
+
+black_papers <- black_papers |> 
+  mutate(newspaper_name1 = str_squish(Newspapers)) |> 
+  separate(newspaper_name1, into = c("publication", "city_date"), sep = "\\(") |> 
+  mutate(publication = str_squish(publication))
+
+black_papers <- black_papers %>% 
+  mutate(black = "Y")
+```
+
+### Prepare the scraped data for matching
+```{r}
+
+combo <- combo |> 
+  mutate(location1 = str_squish(location)) |> 
+  separate(location1, into = c("city", "state"), sep = ",") |> 
+ mutate(state=str_squish(state)) |> 
+  mutate(city = str_squish(city)) |> 
+   mutate(full_state = case_when(
+    str_detect(state, "Ala\\.") ~ "Alabama",
+    str_detect(state,  "Ariz\\.") ~ "Arizona",
+    str_detect(state,  "Ark\\.") ~ "Arkansas",
+    str_detect(city,  "Calif\\.") ~ "California",
+    str_detect(state,  "Calif\\.") ~ "California",
+    str_detect(state,  "Colo\\.") ~ "Colorado",
+    str_detect(state,  "Conn\\.") ~ "Connecticut",
+    str_detect(state, "Del.") ~ "Delaware",
+    str_detect(state, "D\\.C\\.") ~ "District of Columbia",
+    str_detect(state, "Ga\\.") ~ "Georgia",
+    str_detect(city, "Honolulu\\.") ~ "Hawaii",
+    str_detect(city, "Ind\\.") ~ "Indiana",
+     str_detect(state, "Ind\\.") ~ "Indiana",
+    str_detect(state, "Ill\\.") ~ "Illinois",
+    str_detect(state, "Iowa") ~ "Iowa",
+    str_detect(state, "Idaho") ~ "Idaho",
+    str_detect(state, "Kan\\.") ~ "Kansas",
+    str_detect(full_text, "Kansas") ~ "Kansas",
+    str_detect(state, "Ky\\.") ~ "Kentucky",
+    str_detect(state, "La\\.") ~ "Louisiana",
+    str_detect(full_text, "La\\.") ~ "Louisiana",
+    str_detect(state, "Md\\.") ~ "Maryland",
+    str_detect(state, "Mass\\.") ~ "Massachusetts",
+    str_detect(state, "Mich\\.") ~ "Michigan",
+    str_detect(state, "Minn\\.") ~ "Minnesota",
+    str_detect(full_text, "Minn\\.") ~ "Minnesota",
+    str_detect(state, "Miss\\.") ~ "Mississippi",
+    str_detect(state, "Mo\\.") ~ "Missouri",
+    str_detect(full_text, "Mo\\.") ~ "Missouri",
+    str_detect(state, "Mont\\.") ~ "Montana",
+    str_detect(state, "N\\.J\\.") ~ "New Jersey",
+    str_detect(city, "N\\.J\\.") ~ "New Jersey",
+    str_detect(full_text, "N\\.J\\.") ~ "New Jersey",
+    str_detect(city, "New York") ~ "New York",
+    str_detect(state, "N\\.C\\.") ~ "North Carolina",
+    str_detect(full_text, "N\\.C\\.") ~ "North Carolina",
+    str_detect(state, "N\\.D\\.") ~ "North Dakota",
+    str_detect(state, "Neb\\.") ~ "Nebraska",
+    str_detect(state, "Ohio") ~ "Ohio",
+    str_detect(state, "Or\\.") ~ "Oregon",
+    str_detect(full_text, "Or\\.") ~ "Oregon",
+    str_detect(state, "Pa\\.") ~ "Pennsylvania",
+   str_detect(city, "Providence\\.") ~ "Rhode Island",
+   str_detect(city, "R\\.I\\.") ~ "Rhode Island",
+   str_detect(state, "S\\.C\\.") ~ "South Carolina",
+    str_detect(state, "S\\.D\\.") ~ "South Dakota",
+   str_detect(full_text, "S\\.D\\.") ~ "South Dakota",
+   str_detect(state, "Tenn\\.") ~ "Tennessee",
+    str_detect(state, "Tex\\.") ~ "Texas",
+    str_detect(state, "Utah") ~ "Utah",
+   str_detect(city, "Utah") ~ "Utah",
+    str_detect(state, "Va\\.") ~ "Virginia",
+    str_detect(state, "W\\. Va\\.") ~ "West Virginia",
+    str_detect(state, "Wash\\.") ~ "Washington",
+    str_detect(state, "Wis\\.") ~ "Wisconsin",
+   str_detect(full_text, "Wis\\.") ~ "Wisconsin",
+   str_detect(full_text, "Va\\.") ~ "Virginia",
+   str_detect(full_text, "Wyo\\.") ~ "Wyoming",
+   str_detect(full_text, "Va\\.") ~ "Virginia",
+    TRUE ~ NA_character_ # To handle unexpected cases
+  )) |> 
+    mutate(state1=str_replace_all(state, "[[:punct:]]", "")) |> 
+  mutate(city1=str_replace_all(city, "[[:punct:]]", "")) |> 
+  mutate(
+    full_state1 = case_when(
+      str_detect(state1, "Kansas") ~ "Kansas",
+      str_detect(state1, "Nev") ~ "Nevada",
+      str_detect(state1, "Me") ~ "Maine",
+      str_detect(city1, "Washington DC") ~ "District of Columbia",
+      str_detect(state1, "Indian Territory Okla") ~ "Oklahoma",
+      str_detect(city1, "Manning") ~ "South Carolina",
+      str_detect(city1, "Omaha Neb") ~ "Nebraska",
+      str_detect(city1, "Honolulu") ~ "Hawaii",
+      TRUE ~ NA_character_  # Fill NA if no state is found
+    ))
+
+
+combo1 <- combo |> 
+    mutate(full_state = if_else(is.na(full_state1), full_state, full_state1)) |> 
+  mutate(pubX = str_replace_all(newspaper, "[[:punct:]]", "")) |> 
+  mutate(pubX = tolower(pubX))
+```
+
+### Check data cleaning was successful
+```{r}
+
+x <- combo1 |> 
+  filter(is.na(full_state))
+
+```
+
+### Prepare black papers for matching
+```{r}
+black <- black_papers |> 
+  select(publication, State, black, Newspapers) |> 
+  mutate(pubX = str_replace_all(publication, "[[:punct:]]", "")) |> 
+  mutate(pubX = tolower(pubX))
+
+
+```
+
+# Combine scraped list and Black paper index
+```{r}
+combo2 <- combo1 |> 
+  mutate(newspaper = str_squish(newspaper)) |> 
+  left_join(black, by=c("pubX", "full_state" = "State")) |> 
+  mutate(black = if_else(is.na(black), "N", black))
+
+combo2 |> 
+  count(black)
+
+#write.csv(combo2, "ida_b_wells_mentions_1880-1963.csv")
+```
+
+# Count black, white by year
+```{r}
+totals <- combo2 |> 
+  mutate(black = case_when(
+    black=="Y"~ "Black",
+    black=="N" ~ "White"
+  )) |> 
+  group_by(year, black) |> 
+  count(black)
+```
+
+
+Black	586 
+White	283 
+Grand Total	869
+
+# Visualize all yearly totals
+Black / White Articles Mentioning Ida B Wells By Year
+```{r}
+
+ggplot(totals, aes(x = factor(year), y = n, fill = black)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  labs(x = "Year", y = "Count", fill = "Black") +
+  theme_minimal() +
+  scale_fill_manual(values = c("White" = "red", "Black" = "darkblue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Black / White Articles Mentioning Ida B Wells By Year", 
+       subtitle = "Search of Chronicling America",
+       caption = "Graphic by Rob Wells, 11/16/2024",
+       y="Count of Articles",
+       x="Year")
+
+
+```
+# Visualize the 1890s decade
+Black / White Articles Mentioning Ida B Wells By Year- 1890-1900.  
+```{r}
+
+totals |> 
+  filter(year > 1889 & year < 1901) |> 
+ggplot(aes(x = factor(year), y = n, fill = black)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  labs(x = "Year", y = "Count", fill = "Black") +
+  theme_minimal() +
+  scale_fill_manual(values = c("White" = "red", "Black" = "darkblue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Black / White Articles Mentioning Ida B Wells By Year", 
+       subtitle = "Focus on 1890-1900.  Search of Chronicling America",
+       caption = "Graphic by Rob Wells, 11/16/2024",
+       y="Count of Articles",
+       x="Year")
+
+```
+

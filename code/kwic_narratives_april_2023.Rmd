@@ -18,26 +18,21 @@ library(quanteda)
 
 ### Import Data
 ```{r}
-#import df created from Sean's compiler of raw text sequence - source code in appendix of this document
-#formerly articles_1pct_dec26 
-#152766 rows of text data for tokenization (6448 predominantly white press articles)
-lynch <- read.csv("../data/articles_oct_19.csv")
-#lynch <- read_csv("../data/articles_aug_25.csv")
+#load extracted text: 298564 rows
+lynch <- read_csv("https://osf.io/download/gw5dk/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
+# lynch <- read.csv("~/Code/hcij_lynching_phase_two/narratives/data/articles_oct_19.csv")
 
-#index of 1 pct sample which has been checked by a coder and represents all valid entries
-#formerly jackindex_dec26
-#jackindex <- read_csv("../data/jackindex_march8.csv")
-jackindex <- read.csv("../data/master_article_index_10.19.csv") %>% 
-  mutate(doc_id = paste0(file_id,"_",article_id,".txt"))
+#index of extracted articles (formely jackindex): /hcij_lynching_phase_two/narratives/data/master_article_index_10.19.csv jackindex <- read.csv("~/Code/hcij_lynching_phase_two/narratives/data/master_article_index_10.19.csv") %>% 
+#   mutate(doc_id = paste0(file_id,"_",article_id,".txt"))
 
+index_extracted <- read.csv("https://osf.io/download/uxw3a/?view_only=6c106acd6cb54f6f849e8c6f9098809f") |> 
+  mutate(doc_id = paste0(file_id,".txt"))
 
-#index of all 59,967 articles captured
+#index of all 60,042 articles captured
 # index <- read_csv("/Users/robwells/Code/hcij_lynching_phase_two/Storage_Older_Versions/index_oct7.csv") %>% 
 #   as.data.frame()
-
-index <- read.csv("../data/main_index_dec_28_2023.csv") %>% 
-  as.data.frame()
+index <- read_csv("https://osf.io/download/hda4v/?view_only=6c106acd6cb54f6f849e8c6f9098809f")
 
 index <- janitor::clean_names(index)
 
@@ -93,9 +88,9 @@ library(readtext)
 #created a backup of article_text_2023-02-01 and deleted the manifest and log file because it was messing up the readtext function below
 #lynch1 <- readtext(here::here("./article_text_2023-02-01"))
 # lynch1 <- readtext(here::here("~/Code/hcij_lynching_phase_two/articles_cleaned_2023_03_08"))
-lynch1 <- readtext(here::here("~/Code/hcij_lynching_phase_two/articles_10_19"))
-# #New column, removes .txt from doc_id
-# lynch1$doc_id2 <- str_replace_all(lynch1$doc_id, pattern=fixed('.txt'), replacement=fixed(''))
+lynch1 <- readtext("~/Code/lynching_press/data/articles_june_22_2024")
+# New column, removes .txt from doc_id
+lynch1$doc_id2 <- str_replace_all(lynch1$doc_id, pattern=fixed('.txt'), replacement=fixed(''))
 
 ```
 
@@ -126,7 +121,7 @@ lynch1 <- readtext(here::here("~/Code/hcij_lynching_phase_two/articles_10_19"))
 # lynch1 <- lynch1 %>% 
 #   inner_join(jackindex, by=c("doc_id"="filename"))
 lynch1 <- lynch1 %>% 
-   inner_join(jackindex, by=c("doc_id"))
+   inner_join(index_extracted, by=c("doc_id"))
 
 ##below is the code to add decade and region metadata
 
@@ -214,18 +209,57 @@ lynch2 <- lynch2 %>%
 lynch1$text <- tolower(lynch1$text)
 my_corpus <- corpus(lynch1)  # build a new corpus from the texts
 
+# Tokenize the corpus
+lynch_tokens <- tokens(my_corpus)
 
 ```
 
 
 ### KWIC: 
+### Ida Wells
+```{r}
+ida_b <- kwic(lynch_tokens, phrase(c("ida b wells", "ida b. wells", "ida wells", "miss wells", "wells barnett", "barnett")), window = 50, valuetype = "regex") %>% as.data.frame() 
+
+ida_b <- ida_b %>% 
+  inner_join(index_extracted, by=c("docname"="doc_id"))
+```
+
+
+```{r}
+#distinct articles
+ida_count <- ida_b |> 
+  distinct(docname,  .keep_all = TRUE) |> 
+  count(year)
+
+
+```
+#Eliminate duplication
+ida_b1 <- ida_b %>% 
+  distinct(docname, pre, keyword, post, newspaper_name, year, month, day, url) %>% 
+  rename('Beginning of Passage' = pre, 'End of Passage' = post, Newspaper = newspaper_name, Year = year) 
+
+mob_analysis <- mob_analysis %>%
+  add_column(Code = NA) %>% 
+  add_column(Comments = NA) %>% 
+  select(docname, Newspaper, Year, 'Beginning of Passage', keyword, 'End of Passage', Code, Comments)
+
+mobjunk <- c("mobile",  "automobile",  "automobiles", "mobilize", "mobley", "mobilizing", "democratic party of", "mobe", "moberly",  "mobil", "mobiles", "mobilized", "mobold")
+mob_analysis <- mob_analysis %>%
+  filter(!keyword %in% mobjunk)
+
+```
+
+
+
+
+
 #### Mob analysis
 ```{r}
 
 mob_analysis <- kwic(my_corpus, phrase(c("mob", "masked men", "mask", "captors", "a party of", "mob", "mob attacked", "mob caught", "overpowered by a mob", "law into their own hands", "law unto themselves")), window = 50, valuetype = "regex") %>% as.data.frame() 
 
 mob_analysis <- mob_analysis %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #Eliminate duplication
 mob_analysis <- mob_analysis %>% 
@@ -330,7 +364,7 @@ ggplot(aes(x = decade, y = n, fill = category)) +
 sheriff_analysis <- kwic(my_corpus,  phrase(c("sheriff", "police")), window = 20, valuetype = "regex") %>% as.data.frame() 
 
 sheriff_analysis <- sheriff_analysis %>% 
-  inner_join(jackindex, by=c("docname"="doc_id"))
+  inner_join(index_extracted, by=c("docname"="doc_id"))
 
 # write_delim(sheriff_analysis, path = "sheriff_analysis.txt", delim = ";")
 # write_csv(sheriff_analysis, "../J389L/sheriff_analysis_sept1.csv")
@@ -342,7 +376,7 @@ sheriff_analysis <- sheriff_analysis %>%
 lynchlaw_analysis <- kwic(my_corpus, phrase(c("lynch law")), window = 20, valuetype = "regex") %>% as.data.frame() 
 
 lynchlaw_analysis <- lynchlaw_analysis %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 write_csv(lynchlaw_analysis, "../J389L/lynchlaw_analysis_april28.csv")
 ```
@@ -354,7 +388,7 @@ write_csv(lynchlaw_analysis, "../J389L/lynchlaw_analysis_april28.csv")
 woman_analysis <- kwic(my_corpus,  phrase(c("woman", "girl", "wife", "daughter", "lady")), window = 20, valuetype = "regex") %>% as.data.frame() 
 
 woman_analysis <- woman_analysis %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 write_csv(woman_analysis,  "../J389L/woman_analysis_april28.csv")
 ```
@@ -365,7 +399,7 @@ write_csv(woman_analysis,  "../J389L/woman_analysis_april28.csv")
 lynchvictim_analysis <- kwic(my_corpus,  phrase(c("negro", "fiend", "murderer", "taken from the jail", "the lynching of")), window = 20, valuetype = "regex") %>% as.data.frame() 
 
 lynchvictim_analysis <- lynchvictim_analysis %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 write_csv(lynchvictim_analysis,  "../J389L/lynchvictim_analysis_april28.csv")
 ```
@@ -379,7 +413,7 @@ write_csv(lynchvictim_analysis,  "../J389L/lynchvictim_analysis_april28.csv")
 citizen_analysis <- kwic(my_corpus, "citizen", window = 10, valuetype = "regex") %>% as.data.frame() 
 
 citizen_analysis <- citizen_analysis %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 
 citizen_analysis %>% 
@@ -404,7 +438,7 @@ citizen1 <- citizen_analysis %>%
 hanged_by <- kwic(my_corpus, phrase(c("hanged by", "lynched by", "strung up", "shot by", "burned by", "swung")), window = 15, valuetype = "regex") %>% as.data.frame() 
 
 hanged_by <- hanged_by %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #write_csv(hanged_by, "hanged_by_jan_12.csv")
 
@@ -418,7 +452,7 @@ Terms: "roasted","riddled", "corpse","burned at the stake", "corpse"
 violence <- kwic(my_corpus, phrase(c("roasted", "riddled", "corpse", "burned at the stake")), window = 15, valuetype = "regex") %>% as.data.frame() 
 
 violence <- violence %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
   
 violence <- violence %>% 
   filter(!docname==("13733_0.txt"))
@@ -465,7 +499,7 @@ Terms: "nigger","fiend", "brute"
 racist <- kwic(my_corpus, phrase(c("nigger","fiend", "brute")), window = 15, valuetype = "regex") %>% as.data.frame() 
 
 racist <- racist %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
   
 racist <- racist %>% 
   filter(!docname==("13733_0.txt"))
@@ -524,7 +558,7 @@ grand_jury <- kwic(my_corpus, phrase(c("grand jury")), window = 20, valuetype = 
 
 
 grand_jury <- grand_jury  %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #write_csv(grand_jury, "grand_jury_jan_12.csv")
 ```
@@ -562,7 +596,7 @@ interview <- kwic(my_corpus, phrase(c("interview", "according to", "negro said",
 
 
 interview  <- interview   %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #no results from:
 #negro talk
@@ -609,7 +643,7 @@ lynching_act <- kwic(my_corpus, phrase(c("rope", "bleeding", "shouts", "tree", "
 
 
 lynching_act <- lynching_act  %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #no results from:
 
@@ -630,7 +664,7 @@ white_supremacist <- kwic(my_corpus, phrase(c("Klan", "white caps")), window = 1
 
 
 white_supremacist <- white_supremacist  %>% 
-  inner_join(jackindex, by=c("docname"="filename"))
+  inner_join(index_extracted, by=c("docname"="filename"))
 
 #fix URL to articleextractor.org
 
@@ -1256,7 +1290,7 @@ create_article_text <- function(row_value) {
   
   #row_value is the single argument that is passed to the function
   # Take each row of the dataframe
-  temp <- jackindex %>%
+  temp <- index_extracted %>%
     slice(row_value)
   
   # Store the filename for  use in constructing articles dataframe
@@ -1283,7 +1317,7 @@ articles_df <- tibble()
 #running once to test
 #create_article_text(2) 
 # Create an array of numbers to loop through, from 1 to the number of rows in our index dataframe 
-row_values <- 1:nrow(jackindex)
+row_values <- 1:nrow(index_extracted)
 
 ###
 # Execute function using lapply
@@ -1298,7 +1332,7 @@ lapply(row_values, create_article_text)
 
 articles_df <- articles_df %>%
   select(filename, sentence=value) %>%
-  inner_join(jackindex)
+  inner_join(index_extracted)
 
 
 #####################
