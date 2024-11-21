@@ -473,7 +473,7 @@ ggsave("../output_images_tables/Article_Images/Figure_4_tolnay_graphic_10_16_202
 
 
 
-Year Totals - seguin_tolnay
+Year Totals - beck_tolnay
 ```{r}
 tolnay_beck_year <- tolnay_beck %>% 
  filter(status_clean =="lynching") |> # added nov 17
@@ -939,7 +939,7 @@ mob_summary <- mob_cleaned %>%
     percent_unsure = round(total_unsure / grand_total * 100)
   )
 
-write.csv(mob_summary, "/Users/robwells/Code/lynching_press/output_images_tables/mob_summary_10_20_2024.csv")
+write.csv(mob_summary, "../Code/lynching_press/output_images_tables/mob_summary_10_20_2024.csv")
 
 ```
 
