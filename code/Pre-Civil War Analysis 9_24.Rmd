@@ -1,0 +1,170 @@
+---
+title: "Pre-Civil War analysis"
+author: "Rob Wells"
+date: "2023-09-24"
+output: html_document
+---
+This notebook will analyze data gathered in the Pre-Civil War lynching analysis.
+
+```{r}
+#install.packages("here")
+here::here()
+library(tidyverse)
+library(tidyr)
+#install.packages("ggmap")
+library(ggmap)
+#register_google(key = "")
+library(googlesheets4)
+#install.packages("geosphere")
+library(geosphere)
+```
+
+
+
+
+
+## Read Google Sheet With Student Entries
+```{r}
+precivil <- rio::import("https://docs.google.com/spreadsheets/d/17nL8YBMIys7iJI1eeufiCpI1Plpmid2FSd6zuti5iSk/edit#gid=1208290507", skip=0) 
+
+precivil <- janitor::clean_names(precivil)
+  
+precivil <- precivil %>% 
+  rename(lynching = 'y_n_describes_a_lynching')
+
+precivil <- slice(precivil, -c(619,620)) 
+
+precivil$id <- as.numeric(precivil$id)
+```
+
+
+## Clean Main Index
+```{r}
+#don't use, lacks details such as page
+# mainindex <- read_csv("/Users/robwells/Code/hcij_lynching_phase_two/Storage_Older_Versions/webapp_db_2023-09-24.csv")
+
+
+mainindex1 <- read_csv("/Users/robwells/Code/hcij_lynching_phase_two/Storage_Older_Versions/webapp_db_2023-09-24__ORIGINALS_ONLY.csv")
+
+
+mainindex1 <- separate(data = mainindex1, col = newspaper_name, into = c("newspaper_name1","city"), sep = "[(]", extra ="merge", fill = "right") 
+
+mainindex1 <- separate(data = mainindex1, col = city, into = c("city1","state"), sep = ",", extra ="merge", fill = "right") 
+
+mainindex1 <- separate(data = mainindex1, col = city1, into = c("city1","crap"), sep = "\\[")
+
+#removes ...)
+mainindex1$city1 <- gsub("\\.\\.\\.)", "", mainindex1$city1)
+#need to clean up the state column
+mainindex1$state <- gsub("\\.\\.\\.)", "", mainindex1$state)
+mainindex1$state <- gsub(".)", "", mainindex1$state)
+
+mainindex1 <- mainindex1 %>% 
+  mutate(news_address = paste(city1, state, sep=", "))
+
+mainindex1 <- mainindex1 %>% 
+  mutate(URL = paste("https://articleextractor.org/pages/",file_id, filepath,"0?user_id=6", sep="/"))
+
+mainindex <- mainindex1
+
+mainindex <- mainindex %>% 
+  rename(newspaper_name = newspaper_name1, newspaper_state = state, newspaper_city = city1)
+
+mainindex <- subset(mainindex, select =-crap) 
+mainindex <- mainindex %>% 
+  select(file_id, date,newspaper_name, newspaper_city, newspaper_state, URL, sn, page, year, month, day, edition, news_address, has_article_highlights, last_modified, num_annotations, flag_irrelevant, flag_bad_layout, flag_other, last_modified_by, last_modified_by_name)
+
+
+#write.csv(mainindex, "../data/mainindex.csv")
+
+```
+
+## repetition in precivil
+```{r}
+z <- precivil %>% 
+  filter(reviewed_by_te=="x")
+
+z <- z[-c(12:25)]
+
+z$date <- as.Date(z$date)
+z %>% 
+  count(id) %>% 
+  arrange(desc(n))
+
+
+
+```
+
+
+```{r}
+index2 <- mainindex %>% 
+  select(file_id, newspaper_name, year, newspaper_state, URL)
+
+x <- z %>% 
+  left_join(index2, by=c("id"="file_id"))
+
+bydate <- z %>% 
+  inner_join(mainindex1, by=c("date"))
+
+bydate <- bydate %>% 
+  select("id", "file_id", "date","newspaper_name1","city1","state","url", "news_address", "page", "lynching","attempted_y_n","similar_coverage_y_n","reviewed_by_te", "notes_from_te","notes.y","rsw_questions","year","edition","num_annotations")
+
+#cleaned externally, reimport
+bydate2 <- read.csv("/Users/robwells/Downloads/Pre-Civil-War Master - precivil_bydate.csv")
+
+
+bydate <- bydate2 %>% 
+  rename(newspaper_name = newspaper_name1, newspaper_city = city1, notes = notes.y)
+
+bydate$date <- as.Date(bydate$date)
+
+#write.csv(bydate, "../output/precivil_bydate.csv")
+
+
+
+```
+
+```{r}
+bydate <- read.csv("/Users/gizmofo/Code/hcij_lynching_phase_two/narratives/output/precivil_bydate.csv")
+
+
+bydate %>% 
+  count(file_id) %>% 
+  arrange(desc(n))
+
+
+```
+
+```{r}
+more_civil <- mainindex %>% 
+  filter(date>"1843-05-13" & date < "1861-04-12")
+
+more_civil <- more_civil %>% 
+  rename(url = URL, state= newspaper_state)
+
+
+#finally, combining existing and new data
+
+precivil_new <- bind_rows(bydate, more_civil)
+  
+precivil_new <- precivil_new %>% 
+  select("file_id", "date","newspaper_name","newspaper_city","state","url", "news_address", "page", "lynching","attempted_y_n","similar_coverage_y_n","reviewed_by_te", "notes_from_te","notes","rsw_questions","year","edition","num_annotations", "bad_id", "last_modified_by_name")
+
+#write.csv(precivil_new, "../output/precivil_new.csv")
+```
+
+## Analysis
+
+```{r}
+precivil_new <- read.csv("../output/precivil_new.csv")
+
+reviewed <- precivil_new %>% 
+  filter(reviewed_by_te=="x")
+
+reviewed %>% 
+  count(state) %>% 
+  arrange(desc(n))
+
+
+```
+
